@@ -252,3 +252,20 @@ tasks:
       - results/wp3/openi_qwen_pilot/case_results.csv
       - results/wp3/openi_qwen_pilot/gpu_trace.csv
       - results/wp3/openi_qwen_pilot/idle_trace.csv
+
+  wp3_openi_qwen_output_validation:
+    description: Re-run the frozen 10-case Open-I Qwen2.5-VL-7B BF16 image-description task, compare generated text with public reference findings/impressions using transparent lexical screening metrics, and export a structured manual clinical-review table.
+    command:
+      - .venv-wp3/bin/python
+      - scripts/validate_wp3_openi_qwen_outputs.py
+    approval: manual
+    timeout_minutes: 30
+    requires_gpu: true
+    working_directory: .
+    resources:
+      gpu_count: 1
+      min_vram_gb: 20
+      wait_minutes: 30
+    artifacts:
+      - results/wp3/openi_qwen_output_validation/summary.json
+      - results/wp3/openi_qwen_output_validation/case_review.csv
