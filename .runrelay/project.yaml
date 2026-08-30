@@ -413,3 +413,21 @@ tasks:
       - results/wp3/remaining_bf16_panel_pilot/report.json
       - results/wp3/remaining_bf16_panel_pilot/model_summary.csv
       - results/wp3/remaining_bf16_panel_pilot/case_results.csv
+
+  wp3_medgemma_100case:
+    description: Run pinned MedGemma-4B BF16 on the frozen stratified 100-case single-image Open-I cohort in ten matched 10-case blocks with direct GPU board-energy measurement and lexical output screening.
+    command:
+      - .venv-wp3/bin/python
+      - scripts/run_wp3_medgemma_100case.py
+    approval: manual
+    timeout_minutes: 120
+    requires_gpu: true
+    working_directory: .
+    resources:
+      gpu_count: 1
+      min_vram_gb: 16
+      wait_minutes: 30
+    artifacts:
+      - results/wp3/medgemma_100case/summary.json
+      - results/wp3/medgemma_100case/block_summary.csv
+      - results/wp3/medgemma_100case/case_results_100.csv
