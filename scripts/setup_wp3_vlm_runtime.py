@@ -6,10 +6,12 @@ import pathlib
 import shutil
 import subprocess
 import sys
+import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 VENV = ROOT / ".venv-wp3"
 BOOTSTRAP = ROOT / ".wp3-bootstrap"
+GET_PIP = BOOTSTRAP / "get-pip.py"
 REQ = ROOT / "config" / "wp3_vlm_requirements.txt"
 OUT = ROOT / "results" / "wp3" / "runtime_setup_report.json"
 
@@ -29,6 +31,41 @@ def working_pip(py: pathlib.Path) -> bool:
         check=False,
     )
     return probe.returncode == 0
+
+
+def bootstrap_env() -> dict[str, str]:
+    env = os.environ.copy()
+    prior = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = str(BOOTSTRAP) if not prior else str(BOOTSTRAP) + os.pathsep + prior
+    return env
+
+
+def bootstrap_virtualenv() -> None:
+    BOOTSTRAP.mkdir(parents=True, exist_ok=True)
+    env = bootstrap_env()
+
+    pip_probe = subprocess.run(
+        [sys.executable, "-m", "pip", "--version"],
+        cwd=ROOT,
+        env=env,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if pip_probe.returncode != 0:
+        urllib.request.urlretrieve("https://bootstrap.pypa.io/get-pip.py", GET_PIP)
+        run([sys.executable, str(GET_PIP), "--target", str(BOOTSTRAP)], env=env)
+
+    run([
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "--target",
+        str(BOOTSTRAP),
+        "virtualenv==20.35.3",
+    ], env=env)
+    run([sys.executable, "-m", "virtualenv", str(VENV)], env=env)
 
 
 def create_project_venv() -> str:
@@ -53,31 +90,10 @@ def create_project_venv() -> str:
     if VENV.exists():
         shutil.rmtree(VENV)
 
-    BOOTSTRAP.mkdir(parents=True, exist_ok=True)
-    pip_cmd = [sys.executable, "-m", "pip"]
-    pip_probe = subprocess.run(
-        pip_cmd + ["--version"],
-        cwd=ROOT,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=False,
-    )
-    if pip_probe.returncode != 0:
-        external_pip = shutil.which("pip3") or shutil.which("pip")
-        if not external_pip:
-            raise RuntimeError(
-                "Cannot create the project runtime: stdlib venv lacks ensurepip and no usable pip command is available."
-            )
-        pip_cmd = [external_pip]
-
-    run(pip_cmd + ["install", "--target", str(BOOTSTRAP), "virtualenv==20.35.3"])
-    env = os.environ.copy()
-    prior = env.get("PYTHONPATH")
-    env["PYTHONPATH"] = str(BOOTSTRAP) if not prior else str(BOOTSTRAP) + os.pathsep + prior
-    run([sys.executable, "-m", "virtualenv", str(VENV)], env=env)
+    bootstrap_virtualenv()
     if not working_pip(py):
-        raise RuntimeError("Project-local virtualenv bootstrap completed but pip is still unavailable.")
-    return "project_local_virtualenv_bootstrap"
+        raise RuntimeError("Project-local bootstrap completed but pip is still unavailable in the WP3 environment.")
+    return "get_pip_project_local_virtualenv_bootstrap"
 
 
 def main() -> None:
