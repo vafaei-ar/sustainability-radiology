@@ -144,3 +144,15 @@ tasks:
     working_directory: .
     artifacts:
       - results/wp2/tracker_device_audit.txt
+
+  wp3_validate_prospective_vlm_protocol:
+    description: Validate the frozen prospective VLM benchmark configuration for required models, tasks, measurement boundaries, replication, and interpretation safeguards.
+    command:
+      - python3
+      - scripts/validate_prospective_vlm_protocol.py
+    approval: manual
+    timeout_minutes: 5
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp3/prospective_vlm_protocol_validation.md
