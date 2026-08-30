@@ -106,3 +106,15 @@ tasks:
     working_directory: .
     artifacts:
       - results/wp1/experiment_impact_tracker_total_power_audit.txt
+
+  wp2_vlm_source_inventory:
+    description: Read-only inventory of historical multimodal/VLM benchmark summaries and scripts under /home/asadr/works, recording only paths, sizes, and SHA256 digests.
+    command:
+      - python3
+      - scripts/inventory_wp2_vlm_sources.py
+    approval: manual
+    timeout_minutes: 10
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp2/source_inventory.txt
