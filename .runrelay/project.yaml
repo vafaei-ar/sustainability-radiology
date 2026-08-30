@@ -345,3 +345,18 @@ tasks:
       - results/wp3/openi_50case_two_model/case_manifest_50.csv
       - results/wp3/openi_50case_two_model/qwen_case_review_50.csv
       - results/wp3/openi_50case_two_model/internvl_case_results_50.csv
+
+  wp3_openi_50case_analysis:
+    description: Run paired bootstrap analysis of the 50-case Qwen versus InternVL3 results and characterize the full project-local Open-I report archive to define a defensible stratified 100-case sampling design.
+    command:
+      - python3
+      - scripts/analyze_wp3_openi_50case_and_archive.py
+    approval: manual
+    timeout_minutes: 20
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp3/openi_50case_analysis/paired_statistical_analysis.json
+      - results/wp3/openi_50case_analysis/archive_characterization.json
+      - results/wp3/openi_50case_analysis/mesh_label_counts.csv
+      - results/wp3/openi_50case_analysis/stratification_plan.md
