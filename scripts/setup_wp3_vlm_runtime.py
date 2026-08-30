@@ -116,17 +116,19 @@ def main() -> None:
         "sentencepiece==0.2.1",
         "pillow==11.3.0",
         "qwen-vl-utils==0.0.14",
+        "einops==0.8.1",
+        "timm==1.0.19",
     ])
 
     probe = subprocess.run(
         [
             str(py), "-c",
-            "import json,torch,transformers,accelerate,huggingface_hub; "
+            "import json,torch,transformers,accelerate,huggingface_hub,einops,timm; "
             "print(json.dumps({'python':__import__('sys').version.split()[0],"
             "'torch':torch.__version__,'cuda_available':torch.cuda.is_available(),"
             "'cuda_version':torch.version.cuda,'gpu0':torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,"
             "'transformers':transformers.__version__,'accelerate':accelerate.__version__,"
-            "'huggingface_hub':huggingface_hub.__version__}))"
+            "'huggingface_hub':huggingface_hub.__version__,'einops':einops.__version__,'timm':timm.__version__}))"
         ],
         cwd=ROOT,
         text=True,
