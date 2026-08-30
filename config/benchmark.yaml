@@ -1,0 +1,28 @@
+benchmark:
+  framework: MONAI
+  measurement: experiment-impact-tracker
+  n_iterations: 5000
+  input:
+    classification_2d:
+      batch_size: 256
+      shape_per_sample: [1, 256, 256]
+    classification_3d:
+      batch_size: 64
+      shape_per_sample: [1, 256, 256, 32]
+    segmentation_2d:
+      batch_size: 64
+      shape_per_sample: [1, 256, 256]
+    segmentation_3d:
+      batch_size: 64
+      shape_per_sample: [1, 256, 256, 32]
+
+normalization:
+  definition: individual sample processed by one model forward pass
+  energy_per_inference: total_energy_kwh / (n_iterations * batch_size)
+  energy_per_1000_inferences: 1000 * energy_per_inference
+
+notes:
+  - The historical CSV column Kg_carbon(batch=1000) divided by batch size but not by n_iterations.
+  - Recalculate normalized energy and carbon values before population extrapolation.
+  - The benchmark input is not automatically equivalent to one clinical radiology examination.
+  - Clinical workload multipliers must be defined separately by modality and task.
