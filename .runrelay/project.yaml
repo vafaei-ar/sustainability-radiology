@@ -156,3 +156,15 @@ tasks:
     working_directory: .
     artifacts:
       - results/wp3/prospective_vlm_protocol_validation.md
+
+  wp3_runtime_readiness:
+    description: Read-only audit of the bound workstation runtime for prospective VLM benchmarking, including GPU visibility, CUDA/PyTorch, package versions, disk space, and token presence without exposing values.
+    command:
+      - python3
+      - scripts/audit_wp3_runtime_readiness.py
+    approval: manual
+    timeout_minutes: 5
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp3/runtime_readiness.md
