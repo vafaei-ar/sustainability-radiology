@@ -109,8 +109,11 @@ def prepare_inputs(processor, image_path: pathlib.Path):
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     cases = list(csv.DictReader(MANIFEST.open("r", encoding="utf-8", newline="")))
-    if len(cases) != 10:
-        raise RuntimeError(f"Expected 10 frozen cases, found {len(cases)}")
+    if not cases:
+        raise RuntimeError("Frozen manifest contains no cases")
+    case_indices = [int(case["case_index"]) for case in cases]
+    if case_indices != list(range(1, len(cases) + 1)):
+        raise RuntimeError("Frozen manifest case_index values must be contiguous starting at 1")
     refs = extract_report_texts()
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA unavailable")
