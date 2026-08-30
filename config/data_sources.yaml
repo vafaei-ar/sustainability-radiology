@@ -1,0 +1,49 @@
+sources:
+  cms_medicare_geography_service:
+    provider: Centers for Medicare & Medicaid Services
+    dataset: Medicare Physician & Other Practitioners - by Geography and Service
+    url: https://data.cms.gov/provider-summary-by-type-of-service/medicare-physician-other-practitioners/medicare-physician-other-practitioners-by-geography-and-service
+    update_frequency: annual
+    role: external validation of HCPCS procedure volumes by geography
+    limitation: Original Medicare fee-for-service only; not a full US population denominator
+
+  fda_ai_devices:
+    provider: US Food and Drug Administration
+    dataset: Artificial Intelligence-Enabled Medical Devices
+    url: https://www.fda.gov/medical-devices/software-medical-device-samd/artificial-intelligence-enabled-medical-devices
+    role: characterize authorized radiology AI ecosystem by device, panel, product code, and decision date
+    limitation: authorization counts are not clinical adoption rates
+
+  epa_egrid:
+    provider: US Environmental Protection Agency
+    dataset: Emissions & Generation Resource Integrated Database (eGRID)
+    url: https://www.epa.gov/egrid
+    role: primary open annual electricity CO2e intensity source
+    geography: state and eGRID subregion
+    limitation: annual average output emission rates are not marginal or hourly carbon intensity
+
+  eia_open_data:
+    provider: US Energy Information Administration
+    dataset: EIA Open Data API
+    url: https://www.eia.gov/opendata/
+    role: optional hourly balancing-authority electricity generation for temporal sensitivity analysis
+    limitation: deriving carbon intensity requires explicit fuel/emissions methodology and treatment of imports/exports
+
+  nci_idc:
+    provider: National Cancer Institute
+    dataset: Imaging Data Commons
+    url: https://datacommons.cancer.gov/repository/imaging-data-commons
+    role: public DICOM metadata for empirical modality-specific study workload distributions
+    limitation: cancer-focused collections may not represent all routine radiology examinations
+
+  gbd:
+    provider: Institute for Health Metrics and Evaluation
+    dataset: Global Burden of Disease
+    role: disease burden scaling for disease-specific analysis
+    access: existing study extracts plus reproducible query documentation
+
+  trinetx:
+    provider: TriNetX
+    role: disease-specific radiology utilization estimates
+    access: proprietary; aggregate derived outputs only may be shared publicly
+    limitation: network utilization may not be nationally representative
