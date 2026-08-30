@@ -1,0 +1,129 @@
+study:
+  name: prospective_standardized_vlm_benchmark
+  purpose: publication-grade comparison of radiology VLM operational burden under a fixed protocol
+  evidence_tier: prospective
+
+hardware:
+  primary_gpu: RTX_6000_Ada
+  require_single_gpu: true
+  require_logged_device_name: true
+  require_gpu_utilization_trace: true
+  warm_model: true
+  exclude_model_load_from_tracked_interval: true
+  warmup_cases: 5
+
+models:
+  primary_panel:
+    - MedGemma-4B
+    - InternVL3-8B
+    - Qwen2.5-VL-7B
+    - LLaVA-Med-v1.5
+  optional_3d_model:
+    - RadFM_or_open_3D_radiology_VLM
+  historical_scaling_reference:
+    - InternVL2-1B
+    - InternVL2-2B
+    - InternVL2-4B
+    - InternVL2-8B
+
+precision:
+  baseline: BF16
+  mitigation:
+    - INT8
+    - INT4
+  rule: quantized configurations must be evaluated on the same cases and prompts as baseline
+
+tasks:
+  - id: image_description
+    description: concise radiology image description
+  - id: finding_identification
+    description: identify prespecified clinically relevant findings
+  - id: impression_generation
+    description: generate a concise radiology-style impression
+  - id: diagnostic_qa
+    description: answer a fixed diagnostic question from image plus prompt context
+
+input_burden:
+  tiers:
+    - id: single_2d
+      description: one selected 2D image
+    - id: multi_image
+      description: multiple selected images from one study
+    - id: sampled_volume
+      description: sampled CT or MRI volume represented as a fixed image set
+  requirement: all models within a comparison cell receive equivalent image content
+
+cases:
+  phase1_target: 100
+  minimum_target: 50
+  source: public_deidentified_radiology_data
+  fixed_case_manifest: true
+  record_modality: true
+  record_image_count: true
+  record_input_resolution: true
+
+prompting:
+  fixed_templates: true
+  system_prompt_fixed: true
+  temperature: 0
+  do_sample: false
+  max_new_tokens: 512
+  record_input_tokens: true
+  record_output_tokens: true
+  record_generated_text_hash: true
+
+decoding:
+  default_num_beams: 1
+  same_decoding_across_models_when_supported: true
+  deviations_must_be_logged: true
+
+measurement:
+  primary_raw_endpoint: tracker_total_power
+  physical_unit_status: unresolved_historical_tracker_semantics
+  prospective_preference: direct_energy_meter_or_verified_kwh_tracker
+  tracked_boundary: preprocessing_plus_model_inference_plus_generation
+  exclude_one_time_model_load: true
+  record_wall_clock_seconds: true
+  record_peak_vram: true
+  record_gpu_utilization: true
+  record_gpu_power_trace: true
+  record_idle_baseline_if_feasible: true
+  record_prefill_decode_separately_if_feasible: true
+
+normalization:
+  primary: energy_per_completed_case
+  secondary:
+    - energy_per_1000_cases
+    - energy_per_generated_token
+    - wall_clock_seconds_per_case
+    - tokens_per_second
+  denominator_rule: one completed model response to one prespecified case-task request
+
+replication:
+  repeated_runs_per_cell: 5
+  randomize_case_order_between_replicates: true
+  report_median_primary: true
+
+clinical_utility:
+  requirement: energy results must be interpreted jointly with task performance
+  primary_framework: performance_energy_pareto
+  no_efficiency_claim_if_clinical_utility_unacceptable: true
+
+analysis:
+  primary_comparison_unit: model_precision_task_input_burden
+  compare_quantization_within_model: true
+  compare_models_within_fixed_task_and_input: true
+  bootstrap_unit: case
+  preserve_model_level_replicates: true
+  report_protocol_deviations: true
+
+exclusions:
+  - training_energy
+  - embodied_hardware_emissions
+  - intrinsic_scanner_energy
+  - hospital_building_energy
+
+interpretation:
+  historical_vlm_pilot_is_descriptive_only: true
+  florence2_historical_cpu_runs_not_ranked_against_gpu_vlms: true
+  population_extrapolation_requires_clinical_workload_mapping: true
