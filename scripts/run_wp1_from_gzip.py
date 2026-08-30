@@ -27,4 +27,6 @@ for _, (gz_name, csv_name, expected) in FILES.items():
     if observed != expected:
         raise RuntimeError(f"Checksum mismatch for {dst}: {observed}")
 
-runpy.run_path("scripts/run_wp1_benchmark_audit.py", run_name="__main__")
+ns = runpy.run_path("scripts/run_wp1_benchmark_audit.py")
+ns["EXPECTED_SHA256"].update({key: spec[2] for key, spec in FILES.items()})
+ns["main"]()
