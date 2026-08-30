@@ -80,3 +80,17 @@ tasks:
       - results/wp1/matched_architecture_summary.csv
       - results/wp1/run_variability.csv
       - results/wp1/wp1_report.md
+
+  wp1_hardware_comparison:
+    description: Collapse WP1 replicates to architecture-level medians and compute paired cross-GPU energy ratios with architecture-resampled bootstrap intervals where adequately supported.
+    command:
+      - python3
+      - scripts/run_wp1_hardware_comparison.py
+    approval: manual
+    timeout_minutes: 10
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp1/architecture_level_summary.csv
+      - results/wp1/paired_gpu_ratios.csv
+      - results/wp1/wp1_hardware_comparison.md
