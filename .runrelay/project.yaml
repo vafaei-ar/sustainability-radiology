@@ -180,3 +180,15 @@ tasks:
     working_directory: .
     artifacts:
       - results/wp3/existing_ml_env_inventory.txt
+
+  wp3_setup_project_vlm_runtime:
+    description: Create a project-local Python virtual environment and install the pinned CUDA-enabled WP3 VLM dependencies without modifying system Python or unrelated project environments.
+    command:
+      - python3
+      - scripts/setup_wp3_vlm_runtime.py
+    approval: manual
+    timeout_minutes: 30
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp3/runtime_setup_report.json
