@@ -381,3 +381,17 @@ tasks:
       - results/wp3/openi_100case_single_image_two_model/block_summary.csv
       - results/wp3/openi_100case_single_image_two_model/qwen_case_review_100.csv
       - results/wp3/openi_100case_single_image_two_model/internvl_case_results_100.csv
+
+  wp3_openi_100case_analysis:
+    description: Run paired bootstrap inference for the frozen 100-case Qwen versus InternVL3 benchmark, including matched block energy/runtime ratios and exploratory utility subgroup analyses.
+    command:
+      - python3
+      - scripts/analyze_wp3_openi_100case.py
+    approval: manual
+    timeout_minutes: 20
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp3/openi_100case_analysis/paired_analysis.json
+      - results/wp3/openi_100case_analysis/subgroup_utility.csv
+      - results/wp3/openi_100case_analysis/analysis_report.md
