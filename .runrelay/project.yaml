@@ -38,10 +38,10 @@ tasks:
     working_directory: .
 
   wp1_benchmark_audit:
-    description: Normalize and audit the three measured historical MONAI GPU benchmark tables using fixed checksums and architecture-matched summaries.
+    description: Materialize frozen benchmark inputs and normalize/audit the three measured historical MONAI GPU benchmark tables using fixed checksums and architecture-matched summaries.
     command:
       - python3
-      - scripts/run_wp1_benchmark_audit.py
+      - scripts/run_wp1_from_gzip.py
     approval: manual
     timeout_minutes: 10
     requires_gpu: false
