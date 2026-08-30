@@ -94,3 +94,15 @@ tasks:
       - results/wp1/architecture_level_summary.csv
       - results/wp1/paired_gpu_ratios.csv
       - results/wp1/wp1_hardware_comparison.md
+
+  wp1_total_power_unit_audit:
+    description: Read-only audit of experiment-impact-tracker package metadata and source excerpts to verify the semantics and unit of the historical total_power field.
+    command:
+      - python3
+      - scripts/audit_experiment_impact_tracker_total_power.py
+    approval: manual
+    timeout_minutes: 10
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp1/experiment_impact_tracker_total_power_audit.txt
