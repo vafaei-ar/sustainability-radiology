@@ -37,6 +37,18 @@ tasks:
     requires_gpu: false
     working_directory: .
 
+  wp1_source_inventory:
+    description: Read-only inventory of exact WP1 benchmark CSV filenames under /home/asadr/works, reporting only paths, sizes, and SHA256 digests.
+    command:
+      - python3
+      - scripts/inventory_wp1_sources.py
+    approval: manual
+    timeout_minutes: 10
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp1/source_inventory.txt
+
   wp1_benchmark_audit:
     description: Materialize frozen benchmark inputs and normalize/audit the three measured historical MONAI GPU benchmark tables using fixed checksums and architecture-matched summaries.
     command:
