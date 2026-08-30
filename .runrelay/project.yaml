@@ -220,3 +220,16 @@ tasks:
       - results/wp3/qwen_measurement_calibration/replicates.csv
       - results/wp3/qwen_measurement_calibration/gpu_trace.csv
       - results/wp3/qwen_measurement_calibration/idle_trace.csv
+
+  wp3_prepare_openi_cxr_pilot:
+    description: Download the public deidentified Open-I Indiana chest X-ray archives into the project-local WP3 data cache and freeze a deterministic 10-case single-image pilot manifest with source and file hashes.
+    command:
+      - python3
+      - scripts/prepare_wp3_openi_cxr_pilot.py
+    approval: manual
+    timeout_minutes: 45
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp3/openi_cxr_pilot/case_manifest.csv
+      - results/wp3/openi_cxr_pilot/preparation_report.json
