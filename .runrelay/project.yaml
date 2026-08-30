@@ -52,3 +52,19 @@ tasks:
       - results/wp1/matched_architecture_summary.csv
       - results/wp1/run_variability.csv
       - results/wp1/wp1_report.md
+
+  wp1_benchmark_audit_legacy_source:
+    description: Stage the three checksum-verified historical benchmark summaries from the known legacy project tree and run the WP1 audit.
+    command:
+      - python3
+      - scripts/run_wp1_from_legacy_source.py
+    approval: manual
+    timeout_minutes: 10
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp1/normalized_runs.csv
+      - results/wp1/architecture_coverage.csv
+      - results/wp1/matched_architecture_summary.csv
+      - results/wp1/run_variability.csv
+      - results/wp1/wp1_report.md
