@@ -431,3 +431,20 @@ tasks:
       - results/wp3/medgemma_100case/summary.json
       - results/wp3/medgemma_100case/block_summary.csv
       - results/wp3/medgemma_100case/case_results_100.csv
+
+  wp3_three_model_100case_analysis:
+    description: Run matched three-model paired bootstrap analysis for MedGemma-4B, Qwen2.5-VL-7B, and InternVL3-8B on the frozen 100-case Open-I cohort and prepare a blinded 50-case clinical-review packet without performing adjudication.
+    command:
+      - python3
+      - scripts/analyze_wp3_three_model_100case.py
+    approval: manual
+    timeout_minutes: 30
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp3/three_model_100case_analysis/summary.json
+      - results/wp3/three_model_100case_analysis/operational_pairwise.csv
+      - results/wp3/three_model_100case_analysis/utility_pairwise.csv
+      - results/wp3/three_model_100case_analysis/clinical_review_blinded_50.csv
+      - results/wp3/three_model_100case_analysis/clinical_review_unblinding_key.csv
+      - results/wp3/three_model_100case_analysis/analysis_report.md
