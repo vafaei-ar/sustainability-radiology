@@ -287,3 +287,22 @@ tasks:
       - results/wp3/openi_qwen_prompt_sensitivity/report.json
       - results/wp3/openi_qwen_prompt_sensitivity/prompt_summary.csv
       - results/wp3/openi_qwen_prompt_sensitivity/case_prompt_results.csv
+
+  wp3_internvl3_openi_pilot:
+    description: Load the public InternVL3-8B BF16 checkpoint, run a one-case compatibility preflight, then conditionally complete the same frozen 10-case Open-I image-description workload with direct GPU board-energy measurement and lexical output screening.
+    command:
+      - .venv-wp3/bin/python
+      - scripts/run_wp3_internvl3_openi_pilot.py
+    approval: manual
+    timeout_minutes: 90
+    requires_gpu: true
+    working_directory: .
+    resources:
+      gpu_count: 1
+      min_vram_gb: 24
+      wait_minutes: 30
+    artifacts:
+      - results/wp3/internvl3_openi_pilot/report.json
+      - results/wp3/internvl3_openi_pilot/case_results.csv
+      - results/wp3/internvl3_openi_pilot/gpu_trace.csv
+      - results/wp3/internvl3_openi_pilot/idle_trace.csv
