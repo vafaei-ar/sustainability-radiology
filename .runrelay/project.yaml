@@ -168,3 +168,15 @@ tasks:
     working_directory: .
     artifacts:
       - results/wp3/runtime_readiness.md
+
+  wp3_existing_ml_env_inventory:
+    description: Read-only inventory of existing Python environments and Hugging Face cache metadata under /home/asadr/works to identify a reusable CUDA-capable VLM runtime without modifying the workstation.
+    command:
+      - python3
+      - scripts/inventory_wp3_existing_ml_envs.py
+    approval: manual
+    timeout_minutes: 10
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp3/existing_ml_env_inventory.txt
