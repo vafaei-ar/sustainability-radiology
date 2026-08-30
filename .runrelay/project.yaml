@@ -132,3 +132,15 @@ tasks:
       - results/wp2/historical_vlm_normalized_runs.csv
       - results/wp2/historical_vlm_model_summary.csv
       - results/wp2/historical_vlm_protocol_audit.md
+
+  wp2_tracker_device_audit:
+    description: Read-only audit of historical multimodal Experiment Impact Tracker logs for model-specific GPU/device and power evidence.
+    command:
+      - python3
+      - scripts/audit_wp2_tracker_device.py
+    approval: manual
+    timeout_minutes: 10
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp2/tracker_device_audit.txt
