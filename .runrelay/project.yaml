@@ -36,3 +36,19 @@ tasks:
     timeout_minutes: 5
     requires_gpu: false
     working_directory: .
+
+  wp1_benchmark_audit:
+    description: Normalize and audit the three measured historical MONAI GPU benchmark tables using fixed checksums and architecture-matched summaries.
+    command:
+      - python3
+      - scripts/run_wp1_benchmark_audit.py
+    approval: manual
+    timeout_minutes: 10
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp1/normalized_runs.csv
+      - results/wp1/architecture_coverage.csv
+      - results/wp1/matched_architecture_summary.csv
+      - results/wp1/run_variability.csv
+      - results/wp1/wp1_report.md
