@@ -126,12 +126,13 @@ activemq-data/
 # SageMath parsed files
 *.sage.py
 
-# Environments
+# Environments and project-local WP3 caches
 .env
 .envrc
 .venv
 .venv-wp3/
 .wp3-bootstrap/
+.wp3-models/
 env/
 venv/
 ENV/
