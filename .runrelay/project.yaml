@@ -1,0 +1,38 @@
+schema_version: 1
+
+project:
+  id: sustainability-radiology
+  repo: vafaei-ar/sustainability-radiology
+  visibility: public
+
+execution:
+  profile: safe
+  approval_default: manual
+  machine_binding: fixed
+  machine_id: pshjl4vf24
+  runner_source: runrelay_control_repo
+  exact_commit: true
+  allow_arbitrary_commands: false
+
+security:
+  project_only_filesystem: true
+  network_access: true
+  inherit_environment: false
+  destructive_operations: false
+
+monitoring:
+  heartbeat_seconds: 60
+  telegram_include_log_tail: true
+  tmux_default: false
+
+tasks:
+  smoke_test:
+    description: Non-destructive RunRelay connectivity test.
+    command:
+      - python3
+      - -c
+      - "import os,platform; print('RUNRELAY_SMOKE_OK'); print('host='+platform.node()); print('cwd='+os.getcwd())"
+    approval: manual
+    timeout_minutes: 5
+    requires_gpu: false
+    working_directory: .
