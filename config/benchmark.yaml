@@ -18,11 +18,13 @@ benchmark:
 
 normalization:
   definition: individual sample processed by one model forward pass
-  energy_per_inference: total_energy_kwh / (n_iterations * batch_size)
-  energy_per_1000_inferences: 1000 * energy_per_inference
+  tracker_total_power_per_inference: Total_power / (n_iterations * batch_size)
+  tracker_total_power_per_1000_inferences: 1000 * tracker_total_power_per_inference
+  physical_unit_status: unresolved_historical_tracker_semantics
 
 notes:
   - The historical CSV column Kg_carbon(batch=1000) divided by batch size but not by n_iterations.
-  - Recalculate normalized energy and carbon values before population extrapolation.
+  - Recalculate normalized tracker total_power before population extrapolation.
+  - Do not label historical Total_power-derived endpoints as kWh until the tracker unit is verified from source or an independent calibration.
   - The benchmark input is not automatically equivalent to one clinical radiology examination.
   - Clinical workload multipliers must be defined separately by modality and task.
