@@ -1,0 +1,13 @@
+gpu,Task,Dimension,n_runs,n_architectures,matched_n,matched_architectures,matched_median_kwh_per_1000,matched_mean_kwh_per_1000,matched_sd_kwh_per_1000
+A100,Classification,2D,16,8,16,8,0.000116,0.000142,0.000084
+RTX5000,Classification,2D,85,17,40,8,0.000223,0.000250,0.000117
+RTX_6000_Ada,Classification,2D,85,17,40,8,0.000186,0.000219,0.000107
+A100,Classification,3D,20,10,20,10,0.000648,0.000849,0.000571
+RTX5000,Classification,3D,85,17,50,10,0.001027,0.001219,0.000482
+RTX_6000_Ada,Classification,3D,85,17,50,10,0.000956,0.001175,0.000588
+A100,Segmentation,2D,16,8,16,8,0.000147,0.000160,0.000114
+RTX5000,Segmentation,2D,45,9,40,8,0.000223,0.000263,0.000206
+RTX_6000_Ada,Segmentation,2D,45,9,40,8,0.000206,0.000231,0.000170
+A100,Segmentation,3D,4,2,4,2,0.000809,0.000811,0.000334
+RTX5000,Segmentation,3D,42,9,10,2,0.001171,0.001173,0.000433
+RTX_6000_Ada,Segmentation,3D,45,9,10,2,0.001124,0.001124,0.000433
