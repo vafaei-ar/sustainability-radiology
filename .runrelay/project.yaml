@@ -118,3 +118,17 @@ tasks:
     working_directory: .
     artifacts:
       - results/wp2/source_inventory.txt
+
+  wp2_vlm_reconstruction:
+    description: Verify frozen historical VLM sources, normalize tracker total_power by completed case calls, summarize model runs, and export source-grounded protocol evidence.
+    command:
+      - python3
+      - scripts/run_wp2_vlm_reconstruction.py
+    approval: manual
+    timeout_minutes: 10
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp2/historical_vlm_normalized_runs.csv
+      - results/wp2/historical_vlm_model_summary.csv
+      - results/wp2/historical_vlm_protocol_audit.md
