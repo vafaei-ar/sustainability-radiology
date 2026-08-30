@@ -133,6 +133,7 @@ activemq-data/
 .venv-wp3/
 .wp3-bootstrap/
 .wp3-models/
+.wp3-data/
 env/
 venv/
 ENV/
