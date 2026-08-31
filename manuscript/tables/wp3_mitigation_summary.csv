@@ -1,0 +1,7 @@
+experiment,condition,n_cases_or_blocks,gross_wh_per_case,net_wh_per_case,median_seconds_per_case,mean_output_tokens,radgraph_rg_er,near_token_cap_fraction,peak_sampled_vram_mib,interpretation
+quantization,BF16,3x10-case blocks,0.0770,0.02885,2.64,,,,8984,Reference precision
+quantization,INT8,3x10-case blocks,0.2335,0.04060,9.53,,,,5664,Gross energy increased despite lower sampled VRAM
+quantization,INT4,3x10-case blocks,0.1051,0.02455,4.01,,,,4830,Net energy decreased but primary gross energy increased
+generation_length,max_new_tokens_128,10x10-case blocks,0.0812137465,0.0290896411,2.4645411,41.29,0.2203648772,0.00,,Reference token budget
+generation_length,max_new_tokens_64,10x10-case blocks,0.0812816244,0.0287118417,2.4660582,41.29,0.2203648772,0.00,,Operationally equivalent to 128 tokens
+generation_length,max_new_tokens_32,10x10-case blocks,0.0616356802,0.0220320039,1.8835841,31.54,0.1982326357,0.93,,Lower energy with lower automated fidelity and frequent truncation
