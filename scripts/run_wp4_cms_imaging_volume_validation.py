@@ -128,6 +128,13 @@ def find_field(row: dict, exact: tuple[str, ...] = (), contains: tuple[str, ...]
     raise RuntimeError(f"Could not identify field exact={exact} contains={contains}; fields={list(row)}")
 
 
+def optional_field(row: dict, exact: tuple[str, ...], contains: tuple[str, ...] = ()) -> str | None:
+    try:
+        return find_field(row, exact=exact, contains=contains)
+    except RuntimeError:
+        return None
+
+
 def as_float(value: object) -> float:
     text = str(value or "").replace(",", "").strip()
     if not text:
@@ -142,15 +149,15 @@ def classify_modality(text: str) -> str:
     t = text.lower()
     if re.search(r"mamm|breast.*imag", t):
         return "mammography"
-    if re.search(r"magnetic resonance|\bmri\b|\bmr\b", t):
+    if re.search(r"magnetic resonance|\bmri\b|\bmra\b|\bmr\b", t):
         return "mri"
-    if re.search(r"computed tomography|\bct\b|cat scan", t):
+    if re.search(r"computed tomography|\bct\b|\bcta\b|cat scan", t):
         return "ct"
     if re.search(r"pet|positron|nuclear|scint|spect", t):
         return "nuclear_medicine_pet"
-    if re.search(r"ultrasound|ultrason|sonograph|echograph", t):
+    if re.search(r"ultrasound|ultrason|sonograph|echograph|duplex", t):
         return "ultrasound"
-    if re.search(r"x[- ]?ray|radiograph|plain film|fluorosc", t):
+    if re.search(r"x[- ]?ray|radiograph|plain film|fluorosc|angiograph", t):
         return "radiography_fluoroscopy"
     return "other_imaging"
 
@@ -181,7 +188,6 @@ def main() -> None:
 
     national = fetch_all(cms_url, {geo_field: "National"})
     if not national:
-        # Some releases encode the level in uppercase.
         national = fetch_all(cms_url, {geo_field: "NATIONAL"})
     if not national:
         raise RuntimeError("No national rows found in CMS geography/service dataset")
@@ -193,29 +199,43 @@ def main() -> None:
     rbcs = fetch_all(rbcs_url)
     if not rbcs:
         raise RuntimeError("RBCS API returned no rows")
-    r_hcpcs = find_field(rbcs[0], exact=("HCPCS_CD", "HCPCS_Cd"), contains=("HCPCS", "CD"))
-    r_cat = find_field(rbcs[0], exact=("RBCS_CAT", "RBCS_CAT_DESC"), contains=("RBCS", "CAT"))
-    try:
-        r_subcat = find_field(rbcs[0], exact=("RBCS_SUBCAT", "RBCS_SUBCAT_DESC"), contains=("RBCS", "SUBCAT"))
-    except RuntimeError:
-        r_subcat = r_cat
-    try:
-        r_family = find_field(rbcs[0], exact=("RBCS_FAMILY", "RBCS_FAMILY_DESC"), contains=("RBCS", "FAMILY"))
-    except RuntimeError:
-        r_family = r_subcat
+
+    first = rbcs[0]
+    r_hcpcs = find_field(first, exact=("HCPCS_CD", "HCPCS_Cd"), contains=("HCPCS", "CD"))
+    r_cat_code = optional_field(first, exact=("RBCS_CAT",), contains=("RBCS", "CAT"))
+    r_cat_desc = optional_field(first, exact=("RBCS_CAT_DESC", "RBCS_CATEGORY_DESC"), contains=("RBCS", "CAT", "DESC"))
+    r_subcat_code = optional_field(first, exact=("RBCS_SUBCAT",), contains=("RBCS", "SUBCAT"))
+    r_subcat_desc = optional_field(first, exact=("RBCS_SUBCAT_DESC", "RBCS_SUBCATEGORY_DESC"), contains=("RBCS", "SUBCAT", "DESC"))
+    r_family_code = optional_field(first, exact=("RBCS_FAMILY",), contains=("RBCS", "FAMILY"))
+    r_family_desc = optional_field(first, exact=("RBCS_FAMILY_DESC",), contains=("RBCS", "FAMILY", "DESC"))
+
+    if r_cat_code is None and r_cat_desc is None:
+        raise RuntimeError(f"Could not identify RBCS category fields; fields={list(first)}")
 
     rbcs_map: dict[str, dict] = {}
     for row in rbcs:
         code = str(row.get(r_hcpcs, "")).strip().upper()
         if not code:
             continue
-        category = str(row.get(r_cat, "")).strip()
-        subcat = str(row.get(r_subcat, "")).strip()
-        family = str(row.get(r_family, "")).strip()
-        if "IMAGING" in category.upper():
-            rbcs_map[code] = {"category": category, "subcategory": subcat, "family": family}
+        category_code = str(row.get(r_cat_code, "")).strip() if r_cat_code else ""
+        category_desc = str(row.get(r_cat_desc, "")).strip() if r_cat_desc else ""
+        is_imaging = category_code.upper() == "I" or "IMAGING" in category_desc.upper()
+        if not is_imaging:
+            continue
+        subcat_code = str(row.get(r_subcat_code, "")).strip() if r_subcat_code else ""
+        subcat_desc = str(row.get(r_subcat_desc, "")).strip() if r_subcat_desc else ""
+        family_code = str(row.get(r_family_code, "")).strip() if r_family_code else ""
+        family_desc = str(row.get(r_family_desc, "")).strip() if r_family_desc else ""
+        rbcs_map[code] = {
+            "category": category_desc or category_code or "Imaging",
+            "subcategory": subcat_desc or subcat_code,
+            "family": family_desc or family_code,
+            "category_code": category_code,
+            "subcategory_code": subcat_code,
+            "family_code": family_code,
+        }
     if not rbcs_map:
-        raise RuntimeError("No RBCS Imaging mappings found")
+        raise RuntimeError(f"No RBCS Imaging mappings found; detected category fields code={r_cat_code!r}, desc={r_cat_desc!r}")
     progress(3, 5, f"Resolved {len(rbcs_map)} RBCS Imaging HCPCS codes")
 
     mapped_rows: list[dict] = []
@@ -249,7 +269,8 @@ def main() -> None:
     imaging_total = 0.0
     for r in mapped_rows:
         imaging_total += float(r["total_services"])
-        by_sub[(r["rbcs_subcategory"], r["rbcs_family"])] = by_sub.get((r["rbcs_subcategory"], r["rbcs_family"]), 0.0) + float(r["total_services"])
+        key = (r["rbcs_subcategory"], r["rbcs_family"])
+        by_sub[key] = by_sub.get(key, 0.0) + float(r["total_services"])
         by_mod[r["derived_modality"]] = by_mod.get(r["derived_modality"], 0.0) + float(r["total_services"])
 
     sub_rows = [
@@ -283,6 +304,14 @@ def main() -> None:
         "all_national_service_total_before_rbcs_filter": total_services,
         "unmatched_nonimaging_or_unmapped_service_total": unmatched_services,
         "modality_totals": {k: v for k, v in sorted(by_mod.items())},
+        "rbcs_fields": {
+            "category_code": r_cat_code,
+            "category_description": r_cat_desc,
+            "subcategory_code": r_subcat_code,
+            "subcategory_description": r_subcat_desc,
+            "family_code": r_family_code,
+            "family_description": r_family_desc,
+        },
         "interpretation": "CMS Original Medicare fee-for-service Part B service counts are an external utilization validation layer, not full-US examination counts.",
         "limitations": [
             "Service counts are billing services and may not equal unique imaging examinations; professional and technical billing structure can affect counts.",
@@ -293,7 +322,20 @@ def main() -> None:
     }
     (OUT / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
 
-    report = f"""# WP4 CMS imaging-volume validation\n\nStatus: PASS\n\nSource: CMS `{CMS_TITLE}`, data year {summary['cms_year']}, joined to the latest available `{RBCS_TITLE}` taxonomy discovered from the CMS data catalog at execution time.\n\nNational CMS rows downloaded: {len(national):,}. RBCS Imaging HCPCS codes: {len(rbcs_map):,}. Matched imaging HCPCS rows: {len(mapped_rows):,}. Total matched imaging service count: {imaging_total:,.0f}.\n\nThis output is an **external validation layer**. It is not a national US examination denominator. CMS service counts reflect Original Medicare fee-for-service Part B billing services and may differ from unique examinations because of billing components and service definitions. Medicare Advantage and non-Medicare populations are not represented.\n\nThe modality table is derived from RBCS Imaging taxonomy text plus HCPCS descriptions. It is intended for broad workload-distribution checks. The RBCS subcategory/family table is retained as the less transformed primary CMS summary.\n\nRaw CMS public data are cached project-locally and are not declared as RunRelay artifacts. Only derived aggregate/audit tables are exported.\n"""
+    report = f"""# WP4 CMS imaging-volume validation
+
+Status: PASS
+
+Source: CMS `{CMS_TITLE}`, data year {summary['cms_year']}, joined to the latest available `{RBCS_TITLE}` taxonomy discovered from the CMS data catalog at execution time.
+
+National CMS rows downloaded: {len(national):,}. RBCS Imaging HCPCS codes: {len(rbcs_map):,}. Matched imaging HCPCS rows: {len(mapped_rows):,}. Total matched imaging service count: {imaging_total:,.0f}.
+
+This output is an **external validation layer**. It is not a national US examination denominator. CMS service counts reflect Original Medicare fee-for-service Part B billing services and may differ from unique examinations because of billing components and service definitions. Medicare Advantage and non-Medicare populations are not represented.
+
+RBCS identifies Imaging with category code `I`; category/subcategory/family description fields are used when available. The modality table is derived from RBCS Imaging taxonomy text plus HCPCS descriptions and is intended for broad workload-distribution checks. The RBCS subcategory/family table is retained as the less transformed primary CMS summary.
+
+Raw CMS public data are cached project-locally and are not declared as RunRelay artifacts. Only derived aggregate/audit tables are exported.
+"""
     (OUT / "validation_report.md").write_text(report, encoding="utf-8")
     progress(5, 5, "CMS imaging-volume validation complete")
     print("WP4_CMS_IMAGING_VOLUME_OK")
