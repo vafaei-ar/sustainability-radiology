@@ -1,0 +1,7 @@
+metric,numerator_model,denominator_model,ratio,ci_low,ci_high,holm_p,paired_blocks,numerator_lower_blocks
+Gross GPU board Wh/case,MedGemma,Qwen,0.4892102595,0.4682124310,0.5081512452,0.01171875,10,10
+Gross GPU board Wh/case,MedGemma,InternVL3,0.3792926087,0.3570407962,0.4012665403,0.01171875,10,10
+Gross GPU board Wh/case,Qwen,InternVL3,0.7753161372,0.7382617439,0.8060280418,0.01171875,10,10
+Idle-adjusted net Wh/case,MedGemma,Qwen,0.2943179486,0.2836515447,0.3050620983,0.01171875,10,10
+Idle-adjusted net Wh/case,MedGemma,InternVL3,0.2444374709,0.2314398567,0.2583131701,0.01171875,10,10
+Idle-adjusted net Wh/case,Qwen,InternVL3,0.8305217949,0.7974518727,0.8605732825,0.01171875,10,10
