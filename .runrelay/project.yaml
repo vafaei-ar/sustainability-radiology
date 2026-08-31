@@ -501,3 +501,19 @@ tasks:
       - results/wp5/egrid2023/subregion_co2e_intensity.csv
       - results/wp5/egrid2023/summary.json
       - results/wp5/egrid2023/validation_report.md
+
+  wp4_cms_imaging_volume_validation:
+    description: Discover the latest CMS geography/service and RBCS API distributions, extract 2024 national Original Medicare fee-for-service Part B imaging service counts, join HCPCS codes to RBCS Imaging taxonomy, and export aggregate modality/subcategory validation tables without treating billing services as full-US examinations.
+    command:
+      - python3
+      - scripts/run_wp4_cms_imaging_volume_validation.py
+    approval: manual
+    timeout_minutes: 30
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp4/cms_imaging_volume/national_imaging_by_rbcs.csv
+      - results/wp4/cms_imaging_volume/national_imaging_by_modality.csv
+      - results/wp4/cms_imaging_volume/hcpcs_imaging_mapping_audit.csv
+      - results/wp4/cms_imaging_volume/summary.json
+      - results/wp4/cms_imaging_volume/validation_report.md
