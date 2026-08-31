@@ -486,3 +486,18 @@ tasks:
       - results/wp3/medgemma_token_budget_100case/block_summary.csv
       - results/wp3/medgemma_token_budget_100case/case_results_300.csv
       - results/wp3/medgemma_token_budget_100case/pairwise_comparisons.csv
+
+  wp5_egrid2023_grid_emissions:
+    description: Download and hash EPA eGRID2023 Revision 2, extract annual state and eGRID-subregion CO2-equivalent total output emission rates, convert lb/MWh to kg CO2e/kWh, validate record counts and units, and export the annual grid-emissions layer for population modeling.
+    command:
+      - python3
+      - scripts/run_wp5_egrid2023_grid_emissions.py
+    approval: manual
+    timeout_minutes: 15
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp5/egrid2023/state_co2e_intensity.csv
+      - results/wp5/egrid2023/subregion_co2e_intensity.csv
+      - results/wp5/egrid2023/summary.json
+      - results/wp5/egrid2023/validation_report.md
