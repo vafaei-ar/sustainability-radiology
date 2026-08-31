@@ -467,3 +467,22 @@ tasks:
       - results/wp3/medgemma_quantization_pilot/compatibility.json
       - results/wp3/medgemma_quantization_pilot/block_summary.csv
       - results/wp3/medgemma_quantization_pilot/case_results.csv
+
+  wp3_medgemma_token_budget_100case:
+    description: Compare MedGemma-4B BF16 generation limits of 128, 64, and 32 maximum new tokens across the same frozen 100-case Open-I cohort with randomized within-block budget order, direct GPU-board energy, output-token counts, paired bootstrap inference, F1-RadGraph RG_ER fidelity, and energy-utility Pareto analysis.
+    command:
+      - .venv-wp3/bin/python
+      - scripts/run_wp3_medgemma_token_budget_100case.py
+    approval: manual
+    timeout_minutes: 90
+    requires_gpu: true
+    working_directory: .
+    resources:
+      gpu_count: 1
+      min_vram_gb: 16
+      wait_minutes: 30
+    artifacts:
+      - results/wp3/medgemma_token_budget_100case/summary.json
+      - results/wp3/medgemma_token_budget_100case/block_summary.csv
+      - results/wp3/medgemma_token_budget_100case/case_results_300.csv
+      - results/wp3/medgemma_token_budget_100case/pairwise_comparisons.csv
