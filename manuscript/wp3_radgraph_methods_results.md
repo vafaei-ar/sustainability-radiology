@@ -36,6 +36,18 @@ Using mean gross GPU board energy and mean F1-RadGraph RG_ER, MedGemma was not P
 
 These results support a model-dependent trade-off between operational energy and automated report fidelity within this frozen single-image chest-radiograph benchmark. They do not establish clinical superiority because the utility endpoint is automated reference-based report fidelity rather than radiologist-adjudicated diagnostic performance.
 
+## Suggested table titles and figure legends
+
+**Table 1. Operational energy and automated report fidelity across three radiology vision-language models.** Mean gross NVIDIA GPU board energy per completed case and mean F1-RadGraph RG_ER are reported for the frozen 100-case Open-I single-image cohort. Pareto dominance was defined using lower gross energy and higher RadGraph fidelity. Deterministic finding-state, omission, and hallucination measures are exploratory reference-based proxies.
+
+**Table 2. Paired operational energy comparisons.** Ratios compare matched 10-case block means. Values below 1 indicate lower energy for the numerator model. Confidence intervals were estimated with 20,000 paired bootstrap resamples. P values are Holm-adjusted exact two-sided sign tests across operational pairwise comparisons. Gross GPU board energy is the primary endpoint; idle-adjusted net energy is secondary.
+
+**Table 3. Paired F1-RadGraph comparisons.** Differences are model A minus model B across the same 100 cases. Confidence intervals were estimated with 20,000 paired bootstrap resamples. P values are Holm-adjusted exact two-sided sign tests within the RadGraph metric family. RadGraph is an automated reference-based report-fidelity metric and does not represent radiologist-adjudicated diagnostic accuracy.
+
+**Figure 1. Energy-utility Pareto comparison.** Mean gross GPU board energy per completed case is plotted against mean F1-RadGraph RG_ER. The preferred direction is toward lower energy and higher automated report fidelity. MedGemma was not Pareto-dominated; Qwen was dominated by MedGemma, and InternVL3 was dominated by both MedGemma and Qwen.
+
+**Figure 2. Model-level operational energy and automated report fidelity.** Panel A shows mean gross GPU board energy per completed case. Panel B shows mean F1-RadGraph RG_ER. The figure summarizes the same frozen 100-case Open-I single-image benchmark and should not be interpreted as a clinical-performance comparison in the absence of radiologist adjudication.
+
 ## Provenance and analysis freeze
 
 Primary source: RunRelay job `K9R4M7Q2`, task `wp3_three_model_100case_analysis`, project commit `fdbfb1943b275c7a0b965944c94ad075e8c3e394`. The completed run reported RadGraph status `ok`, six analysis stages completed, and six declared artifacts delivered to Google Drive. Runtime comparisons remain quarantined.
