@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="620" viewBox="0 0 900 620" role="img" aria-labelledby="title desc">
+  <title id="title">MedGemma generation-length energy-fidelity trade-off</title>
+  <desc id="desc">Scatter plot of gross GPU board energy per case versus F1-RadGraph RG_ER for maximum-new-token limits of 128, 64, and 32. The 128 and 64 token points overlap, while the 32 token point has lower energy and lower RadGraph score.</desc>
+  <rect x="0" y="0" width="900" height="620" fill="white"/>
+  <text x="450" y="38" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="bold">MedGemma generation-length mitigation</text>
+  <text x="450" y="66" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14">Frozen 100-case Open-I single-image cohort</text>
+
+  <line x1="110" y1="500" x2="820" y2="500" stroke="black" stroke-width="2"/>
+  <line x1="110" y1="110" x2="110" y2="500" stroke="black" stroke-width="2"/>
+
+  <g font-family="Arial, Helvetica, sans-serif" font-size="13" fill="black">
+    <line x1="110" y1="500" x2="110" y2="507" stroke="black"/><text x="110" y="528" text-anchor="middle">0.055</text>
+    <line x1="252" y1="500" x2="252" y2="507" stroke="black"/><text x="252" y="528" text-anchor="middle">0.060</text>
+    <line x1="394" y1="500" x2="394" y2="507" stroke="black"/><text x="394" y="528" text-anchor="middle">0.065</text>
+    <line x1="536" y1="500" x2="536" y2="507" stroke="black"/><text x="536" y="528" text-anchor="middle">0.070</text>
+    <line x1="678" y1="500" x2="678" y2="507" stroke="black"/><text x="678" y="528" text-anchor="middle">0.075</text>
+    <line x1="820" y1="500" x2="820" y2="507" stroke="black"/><text x="820" y="528" text-anchor="middle">0.080+</text>
+
+    <line x1="103" y1="500" x2="110" y2="500" stroke="black"/><text x="92" y="505" text-anchor="end">0.195</text>
+    <line x1="103" y1="402" x2="110" y2="402" stroke="black"/><text x="92" y="407" text-anchor="end">0.202</text>
+    <line x1="103" y1="305" x2="110" y2="305" stroke="black"/><text x="92" y="310" text-anchor="end">0.209</text>
+    <line x1="103" y1="207" x2="110" y2="207" stroke="black"/><text x="92" y="212" text-anchor="end">0.216</text>
+    <line x1="103" y1="110" x2="110" y2="110" stroke="black"/><text x="92" y="115" text-anchor="end">0.223</text>
+  </g>
+
+  <text x="465" y="575" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16">Mean gross GPU board energy (Wh/case)</text>
+  <text x="28" y="305" text-anchor="middle" transform="rotate(-90 28 305)" font-family="Arial, Helvetica, sans-serif" font-size="16">Mean F1-RadGraph RG_ER</text>
+
+  <circle cx="818" cy="147" r="9" fill="white" stroke="black" stroke-width="2"/>
+  <text x="792" y="128" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="14">128 tokens</text>
+  <text x="792" y="146" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="12">0.08121 Wh/case, RG_ER 0.22036</text>
+
+  <circle cx="820" cy="147" r="5" fill="black"/>
+  <text x="790" y="174" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="14">64 tokens</text>
+  <text x="790" y="192" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="12">0.08128 Wh/case, identical RG_ER</text>
+
+  <circle cx="298" cy="455" r="9" fill="white" stroke="black" stroke-width="2"/>
+  <circle cx="298" cy="455" r="3" fill="black"/>
+  <text x="322" y="447" font-family="Arial, Helvetica, sans-serif" font-size="14">32 tokens</text>
+  <text x="322" y="466" font-family="Arial, Helvetica, sans-serif" font-size="12">0.06164 Wh/case, RG_ER 0.19823</text>
+  <text x="322" y="485" font-family="Arial, Helvetica, sans-serif" font-size="12">93% at/near token cap</text>
+
+  <path d="M790 165 C690 230, 530 330, 330 438" fill="none" stroke="black" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="535" y="322" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="13">~24% lower gross energy</text>
+  <text x="535" y="341" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="13">with lower automated fidelity</text>
+
+  <text x="450" y="607" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="11">Preferred direction is lower energy and higher fidelity. RadGraph is reference-based automated report fidelity, not radiologist-adjudicated diagnostic accuracy.</text>
+</svg>
