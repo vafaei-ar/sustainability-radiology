@@ -1,0 +1,4 @@
+model,gross_gpu_board_wh_per_case_mean,radgraph_rg_er_mean,wh_per_radgraph_unit,pareto_dominated,dominated_by,finding_state_agreement_mean,omission_proxy_rate,hallucination_proxy_rate
+MedGemma,0.0790135582,0.2203648772,0.3585578575,false,,0.7890909091,0.32,0.21
+Qwen,0.1615124718,0.1723456186,0.9371428942,true,MedGemma,0.7427272727,0.36,0.14
+InternVL3,0.2083182125,0.0995318785,2.0929798124,true,MedGemma;Qwen,0.6663636364,0.37,0.24
