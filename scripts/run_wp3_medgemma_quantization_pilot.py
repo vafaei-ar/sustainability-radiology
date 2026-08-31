@@ -28,7 +28,6 @@ PILOT_CASES = 10
 REPEATS = 3
 IDLE_SECONDS = 8.0
 BNB_VERSION = "0.47.0"
-PKG_TARGET = ROOT / ".wp3-mitigation-packages"
 PRECISIONS = ("bf16", "int8", "int4")
 
 
@@ -62,17 +61,22 @@ def progress(current: int, total: int, phase: str) -> None:
 
 
 def ensure_bitsandbytes() -> dict:
-    PKG_TARGET.mkdir(exist_ok=True)
-    if str(PKG_TARGET) not in sys.path:
-        sys.path.insert(0, str(PKG_TARGET))
+    """Install bitsandbytes into the project-local WP3 virtual environment.
+
+    Transformers checks package metadata through importlib.metadata. Installing
+    bitsandbytes into a detached --target directory can make the module
+    importable while leaving that metadata invisible to the Transformers
+    quantizer check. This task already runs under .venv-wp3, so install the
+    pinned package into that project-local environment instead.
+    """
     try:
         import bitsandbytes as bnb  # type: ignore
         return {"status": "available", "version": getattr(bnb, "__version__", "unknown"), "installed_now": False}
     except Exception:
         cmd = [
             sys.executable, "-m", "pip", "install",
-            "--disable-pip-version-check", "--no-input", "--no-deps",
-            "--target", str(PKG_TARGET), "--upgrade", f"bitsandbytes=={BNB_VERSION}",
+            "--disable-pip-version-check", "--no-input", "--upgrade",
+            f"bitsandbytes=={BNB_VERSION}",
         ]
         run = subprocess.run(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=600)
         if run.returncode != 0:
