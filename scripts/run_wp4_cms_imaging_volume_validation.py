@@ -33,7 +33,7 @@ def progress(current: int, total: int, phase: str) -> None:
         "total": total,
         "fraction": current / total if total else None,
         "phase": phase,
-        "unit": "CMS validation stages",
+        "unit": "WP4 clinical-volume stages",
         "updated_at_epoch": time.time(),
     }
     tmp = path.with_suffix(path.suffix + ".tmp")
@@ -49,6 +49,14 @@ def fetch_json(url: str, timeout: int = 120) -> object:
 
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def sha256_file(path: pathlib.Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def download_catalog() -> tuple[dict, str]:
@@ -169,9 +177,68 @@ def write_csv(path: pathlib.Path, fields: list[str], rows: list[dict]) -> None:
         w.writerows(rows)
 
 
+def safe_schema(path: pathlib.Path) -> list[str]:
+    suffix = path.suffix.lower()
+    try:
+        if suffix in {".csv", ".tsv", ".txt"}:
+            delim = "\t" if suffix == ".tsv" else ","
+            with path.open("r", encoding="utf-8-sig", errors="replace", newline="") as f:
+                row = next(csv.reader(f, delimiter=delim), [])
+            return [str(x).strip()[:120] for x in row[:80]]
+        if suffix == ".json":
+            obj = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+            if isinstance(obj, dict):
+                return [str(x)[:120] for x in list(obj.keys())[:80]]
+            if isinstance(obj, list) and obj and isinstance(obj[0], dict):
+                return [str(x)[:120] for x in list(obj[0].keys())[:80]]
+    except Exception:
+        return []
+    return []
+
+
+def disease_source_readiness() -> dict[str, object]:
+    data_root = ROOT / "data"
+    allowed_suffixes = {".csv", ".tsv", ".txt", ".json", ".xlsx", ".xls", ".parquet"}
+    rows: list[dict[str, object]] = []
+    if data_root.is_dir():
+        for path in data_root.rglob("*"):
+            if not path.is_file() or path.suffix.lower() not in allowed_suffixes:
+                continue
+            rel = path.relative_to(ROOT).as_posix()
+            name = rel.lower()
+            source_type = None
+            if "trinetx" in name:
+                source_type = "trinetx"
+            elif "gbd" in name or "ihme" in name:
+                source_type = "gbd"
+            if source_type is None:
+                continue
+            rows.append({
+                "source_type": source_type,
+                "relative_path": rel,
+                "size_bytes": path.stat().st_size,
+                "sha256": sha256_file(path),
+                "schema_fields": safe_schema(path),
+            })
+    trinetx = [r for r in rows if r["source_type"] == "trinetx"]
+    gbd = [r for r in rows if r["source_type"] == "gbd"]
+    return {
+        "project_local_candidates": rows,
+        "trinetx_candidate_count": len(trinetx),
+        "gbd_candidate_count": len(gbd),
+        "ready_for_disease_scaling": bool(trinetx and gbd),
+        "required_aggregate_contract": {
+            "trinetx": ["disease", "modality", "n_patients", "n_procedures"],
+            "gbd": ["disease", "location", "year", "measure_or_population_basis", "value"],
+        },
+        "privacy_rule": "Only aggregate disease/utilization inputs should be staged. Do not stage row-level patient data or PHI.",
+        "formula": "utilization = n_procedures / n_patients; scaled_volume = utilization * GBD disease burden",
+    }
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
-    progress(0, 5, "Downloading CMS catalog")
+    progress(0, 6, "Downloading CMS catalog")
     catalog, catalog_sha = download_catalog()
 
     cms_ds = catalog_dataset(catalog, CMS_TITLE)
@@ -184,14 +251,14 @@ def main() -> None:
     hcpcs_field = find_field(sample[0], exact=("HCPCS_Cd",), contains=("HCPCS", "CD"))
     desc_field = find_field(sample[0], exact=("HCPCS_Desc",), contains=("HCPCS", "DESC"))
     service_field = find_field(sample[0], exact=("Tot_Srvcs",), contains=("TOT", "SRVC"))
-    progress(1, 5, "Resolved 2024 CMS geography/service schema")
+    progress(1, 6, "Resolved 2024 CMS geography/service schema")
 
     national = fetch_all(cms_url, {geo_field: "National"})
     if not national:
         national = fetch_all(cms_url, {geo_field: "NATIONAL"})
     if not national:
         raise RuntimeError("No national rows found in CMS geography/service dataset")
-    progress(2, 5, f"Downloaded {len(national)} national CMS service rows")
+    progress(2, 6, f"Downloaded {len(national)} national CMS service rows")
 
     rbcs_ds = catalog_dataset(catalog, RBCS_TITLE)
     rbcs_dist = choose_api_distribution(rbcs_ds)
@@ -208,7 +275,6 @@ def main() -> None:
     r_subcat_desc = optional_field(first, exact=("RBCS_SUBCAT_DESC", "RBCS_SUBCATEGORY_DESC"), contains=("RBCS", "SUBCAT", "DESC"))
     r_family_code = optional_field(first, exact=("RBCS_FAMILY",), contains=("RBCS", "FAMILY"))
     r_family_desc = optional_field(first, exact=("RBCS_FAMILY_DESC",), contains=("RBCS", "FAMILY", "DESC"))
-
     if r_cat_code is None and r_cat_desc is None:
         raise RuntimeError(f"Could not identify RBCS category fields; fields={list(first)}")
 
@@ -219,8 +285,7 @@ def main() -> None:
             continue
         category_code = str(row.get(r_cat_code, "")).strip() if r_cat_code else ""
         category_desc = str(row.get(r_cat_desc, "")).strip() if r_cat_desc else ""
-        is_imaging = category_code.upper() == "I" or "IMAGING" in category_desc.upper()
-        if not is_imaging:
+        if not (category_code.upper() == "I" or "IMAGING" in category_desc.upper()):
             continue
         subcat_code = str(row.get(r_subcat_code, "")).strip() if r_subcat_code else ""
         subcat_desc = str(row.get(r_subcat_desc, "")).strip() if r_subcat_desc else ""
@@ -230,13 +295,10 @@ def main() -> None:
             "category": category_desc or category_code or "Imaging",
             "subcategory": subcat_desc or subcat_code,
             "family": family_desc or family_code,
-            "category_code": category_code,
-            "subcategory_code": subcat_code,
-            "family_code": family_code,
         }
     if not rbcs_map:
-        raise RuntimeError(f"No RBCS Imaging mappings found; detected category fields code={r_cat_code!r}, desc={r_cat_desc!r}")
-    progress(3, 5, f"Resolved {len(rbcs_map)} RBCS Imaging HCPCS codes")
+        raise RuntimeError("No RBCS Imaging mappings found")
+    progress(3, 6, f"Resolved {len(rbcs_map)} RBCS Imaging HCPCS codes")
 
     mapped_rows: list[dict] = []
     unmatched_services = 0.0
@@ -260,7 +322,6 @@ def main() -> None:
             "derived_modality": classify_modality(combined),
             "total_services": services,
         })
-
     if not mapped_rows:
         raise RuntimeError("No national CMS rows matched RBCS Imaging codes")
 
@@ -282,13 +343,16 @@ def main() -> None:
         for k, v in sorted(by_mod.items(), key=lambda kv: kv[1], reverse=True)
     ]
     mapped_rows.sort(key=lambda r: float(r["total_services"]), reverse=True)
-
     write_csv(OUT / "national_imaging_by_rbcs.csv", ["rbcs_subcategory", "rbcs_family", "total_services", "share_of_imaging_services"], sub_rows)
     write_csv(OUT / "national_imaging_by_modality.csv", ["derived_modality", "total_services", "share_of_imaging_services"], mod_rows)
     write_csv(OUT / "hcpcs_imaging_mapping_audit.csv", ["hcpcs_code", "hcpcs_description", "rbcs_category", "rbcs_subcategory", "rbcs_family", "derived_modality", "total_services"], mapped_rows)
+    progress(4, 6, "Built CMS imaging validation tables")
+
+    readiness = disease_source_readiness()
+    progress(5, 6, "Audited project-local TriNetX and GBD aggregate inputs")
 
     summary = {
-        "status": "WP4_CMS_IMAGING_VOLUME_OK",
+        "status": "WP4_CLINICAL_VOLUME_VALIDATION_OK",
         "cms_dataset": CMS_TITLE,
         "cms_year": year_from_distribution(cms_dist),
         "cms_distribution_title": cms_dist.get("title"),
@@ -312,33 +376,49 @@ def main() -> None:
             "family_code": r_family_code,
             "family_description": r_family_desc,
         },
+        "disease_volume_source_readiness": readiness,
         "interpretation": "CMS Original Medicare fee-for-service Part B service counts are an external utilization validation layer, not full-US examination counts.",
         "limitations": [
             "Service counts are billing services and may not equal unique imaging examinations; professional and technical billing structure can affect counts.",
             "The dataset represents Original Medicare fee-for-service Part B, not Medicare Advantage or the full US population.",
             "CMS suppresses/redacts selected low-count information for beneficiary privacy.",
             "Derived modality labels are transparent text-based groupings of RBCS Imaging codes and should be treated as analytic categories, not clinical adjudication.",
+            "The disease-based TriNetX x GBD model is not estimated unless aggregate source inputs are available project-locally and their schemas are verified.",
         ],
     }
     (OUT / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
 
-    report = f"""# WP4 CMS imaging-volume validation
+    candidates = readiness["project_local_candidates"]
+    candidate_lines = "\n".join(
+        f"- {r['source_type']}: `{r['relative_path']}` ({r['size_bytes']} bytes; sha256 `{r['sha256']}`; fields={r['schema_fields']})"
+        for r in candidates
+    ) or "- No project-local TriNetX/GBD candidate files were detected under `data/`."
+    ready_text = "YES" if readiness["ready_for_disease_scaling"] else "NO"
+    report = f"""# WP4 clinical-volume validation
 
-Status: PASS
+Status: PASS for CMS external validation; disease-model source readiness: {ready_text}
 
-Source: CMS `{CMS_TITLE}`, data year {summary['cms_year']}, joined to the latest available `{RBCS_TITLE}` taxonomy discovered from the CMS data catalog at execution time.
+Source: CMS `{CMS_TITLE}`, data year {summary['cms_year']}, joined to `{RBCS_TITLE}` discovered from the CMS data catalog at execution time.
 
 National CMS rows downloaded: {len(national):,}. RBCS Imaging HCPCS codes: {len(rbcs_map):,}. Matched imaging HCPCS rows: {len(mapped_rows):,}. Total matched imaging service count: {imaging_total:,.0f}.
 
-This output is an **external validation layer**. It is not a national US examination denominator. CMS service counts reflect Original Medicare fee-for-service Part B billing services and may differ from unique examinations because of billing components and service definitions. Medicare Advantage and non-Medicare populations are not represented.
+This CMS output is an **external validation layer**. It is not a national US examination denominator. CMS service counts reflect Original Medicare fee-for-service Part B billing services and may differ from unique examinations because of billing components and service definitions. Medicare Advantage and non-Medicare populations are not represented.
 
-RBCS identifies Imaging with category code `I`; category/subcategory/family description fields are used when available. The modality table is derived from RBCS Imaging taxonomy text plus HCPCS descriptions and is intended for broad workload-distribution checks. The RBCS subcategory/family table is retained as the less transformed primary CMS summary.
+## Disease-based TriNetX x GBD source readiness
 
-Raw CMS public data are cached project-locally and are not declared as RunRelay artifacts. Only derived aggregate/audit tables are exported.
+{candidate_lines}
+
+Required aggregate contract for the next gate:
+- TriNetX: disease, modality, n_patients, n_procedures; optional year, age, sex, geography.
+- GBD: disease, location, year, measure/population basis, value; optional age and sex.
+- Scaling formula: utilization = n_procedures / n_patients; scaled volume = utilization x GBD disease burden.
+- Only aggregate inputs may be staged. Row-level patient data and PHI must not be placed in this project or declared as RunRelay artifacts.
+
+Raw CMS public data and any project-local source inputs are not declared as RunRelay artifacts. Only derived aggregate/audit outputs are exported.
 """
     (OUT / "validation_report.md").write_text(report, encoding="utf-8")
-    progress(5, 5, "CMS imaging-volume validation complete")
-    print("WP4_CMS_IMAGING_VOLUME_OK")
+    progress(6, 6, "WP4 clinical-volume validation complete")
+    print("WP4_CLINICAL_VOLUME_VALIDATION_OK")
     print(json.dumps(summary, sort_keys=True))
 
 
