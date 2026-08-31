@@ -448,3 +448,22 @@ tasks:
       - results/wp3/three_model_100case_analysis/clinical_review_blinded_50.csv
       - results/wp3/three_model_100case_analysis/clinical_review_unblinding_key.csv
       - results/wp3/three_model_100case_analysis/analysis_report.md
+
+  wp3_medgemma_quantization_pilot:
+    description: Run a staged MedGemma-4B mitigation pilot on the first 10 cases of the frozen Open-I single-image cohort, comparing BF16, INT8, and INT4 across three repeated 10-case blocks with direct GPU board-energy measurement and lexical screening; incompatible quantized modes are recorded without aborting other modes.
+    command:
+      - .venv-wp3/bin/python
+      - scripts/run_wp3_medgemma_quantization_pilot.py
+    approval: manual
+    timeout_minutes: 120
+    requires_gpu: true
+    working_directory: .
+    resources:
+      gpu_count: 1
+      min_vram_gb: 16
+      wait_minutes: 30
+    artifacts:
+      - results/wp3/medgemma_quantization_pilot/summary.json
+      - results/wp3/medgemma_quantization_pilot/compatibility.json
+      - results/wp3/medgemma_quantization_pilot/block_summary.csv
+      - results/wp3/medgemma_quantization_pilot/case_results.csv
