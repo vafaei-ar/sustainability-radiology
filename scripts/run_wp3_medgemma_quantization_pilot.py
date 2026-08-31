@@ -27,7 +27,7 @@ MAX_NEW_TOKENS = 128
 PILOT_CASES = 10
 REPEATS = 3
 IDLE_SECONDS = 8.0
-BNB_VERSION = "0.47.0"
+BNB_VERSION = "0.50.2"
 PRECISIONS = ("bf16", "int8", "int4")
 
 
@@ -61,30 +61,58 @@ def progress(current: int, total: int, phase: str) -> None:
 
 
 def ensure_bitsandbytes() -> dict:
-    """Install bitsandbytes into the project-local WP3 virtual environment.
+    """Install and validate pinned bitsandbytes before Transformers is imported.
 
-    Transformers checks package metadata through importlib.metadata. Installing
-    bitsandbytes into a detached --target directory can make the module
-    importable while leaving that metadata invisible to the Transformers
-    quantizer check. This task already runs under .venv-wp3, so install the
-    pinned package into that project-local environment instead.
+    The shared helper imports Transformers at module import time. Transformers
+    caches optional-package availability during import, so bitsandbytes must be
+    installed and importable before the helper is loaded. The task runs inside
+    the project-local .venv-wp3 environment; no system Python is modified.
     """
+    import importlib.metadata
+
+    import_error = ""
     try:
         import bitsandbytes as bnb  # type: ignore
-        return {"status": "available", "version": getattr(bnb, "__version__", "unknown"), "installed_now": False}
-    except Exception:
-        cmd = [
-            sys.executable, "-m", "pip", "install",
-            "--disable-pip-version-check", "--no-input", "--upgrade",
-            f"bitsandbytes=={BNB_VERSION}",
-        ]
-        run = subprocess.run(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=600)
-        if run.returncode != 0:
-            return {"status": "failed", "version": None, "installed_now": False, "error": (run.stdout or "")[-4000:]}
-        import importlib
-        importlib.invalidate_caches()
+        version = getattr(bnb, "__version__", importlib.metadata.version("bitsandbytes"))
+        if version == BNB_VERSION:
+            return {"status": "available", "version": version, "installed_now": False, "import_error_before_install": ""}
+    except Exception as exc:
+        import_error = f"{type(exc).__name__}: {exc}"
+
+    cmd = [
+        sys.executable, "-m", "pip", "install",
+        "--disable-pip-version-check", "--no-input", "--upgrade",
+        f"bitsandbytes=={BNB_VERSION}",
+    ]
+    run = subprocess.run(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=600)
+    if run.returncode != 0:
+        return {
+            "status": "failed",
+            "version": None,
+            "installed_now": False,
+            "import_error_before_install": import_error,
+            "error": (run.stdout or "")[-4000:],
+        }
+
+    import importlib
+    importlib.invalidate_caches()
+    try:
         import bitsandbytes as bnb  # type: ignore
-        return {"status": "available", "version": getattr(bnb, "__version__", "unknown"), "installed_now": True}
+        version = getattr(bnb, "__version__", importlib.metadata.version("bitsandbytes"))
+        return {
+            "status": "available",
+            "version": version,
+            "installed_now": True,
+            "import_error_before_install": import_error,
+        }
+    except Exception as exc:
+        return {
+            "status": "failed",
+            "version": importlib.metadata.version("bitsandbytes") if importlib.util.find_spec("bitsandbytes") else None,
+            "installed_now": True,
+            "import_error_before_install": import_error,
+            "error": f"{type(exc).__name__}: {exc}",
+        }
 
 
 def make_pipeline(snapshot: pathlib.Path, precision: str):
@@ -127,7 +155,6 @@ def summarize(values):
 
 
 def main() -> None:
-    helper = load_helper()
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     if not MANIFEST.is_file():
         raise RuntimeError("Frozen 100-case Open-I manifest missing")
@@ -138,7 +165,9 @@ def main() -> None:
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA unavailable")
 
+    # Must happen before load_helper(), because the helper imports Transformers.
     bnb = ensure_bitsandbytes()
+    helper = load_helper()
     refs = helper.extract_report_texts()
     snapshot = pathlib.Path(snapshot_download(
         repo_id=MODEL_ID,
