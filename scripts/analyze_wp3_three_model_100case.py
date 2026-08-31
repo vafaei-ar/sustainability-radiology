@@ -57,7 +57,7 @@ def fixed_try_radgraph(pairs):
             "--disable-pip-version-check", "--no-input",
             "--target", str(impl.METRIC_TARGET), "--upgrade", "--no-deps",
             f"radgraph=={impl.RADGRAPH_VERSION}",
-            "appdirs", "dotmap", "jsonpickle", "h5py", "nltk",
+            "appdirs", "dotmap", "jsonpickle", "h5py", "nltk", "defusedxml",
         ]
         install_run = subprocess.run(
             install,
