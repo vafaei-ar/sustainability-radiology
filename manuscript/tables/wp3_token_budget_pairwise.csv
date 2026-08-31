@@ -1,0 +1,7 @@
+metric,numerator_budget,denominator_budget,estimate,ci95_low,ci95_high,effect_scale,exact_sign_p_two_sided,holm_p_within_family
+Gross GPU board Wh/case,64,128,1.0008357927,0.9932364838,1.0078372255,ratio,0.34375,0.34375
+Gross GPU board Wh/case,32,128,0.7589316203,0.7414884888,0.7766730584,ratio,0.001953125,0.005859375
+Gross GPU board Wh/case,32,64,0.7582978405,0.7409559414,0.7751317494,ratio,0.001953125,0.005859375
+F1-RadGraph RG_ER,64,128,0.0,0.0,0.0,mean paired difference,1.0,1.0
+F1-RadGraph RG_ER,32,128,-0.0221322415,-0.0340783028,-0.0104971500,mean paired difference,1.0,1.0
+F1-RadGraph RG_ER,32,64,-0.0221322415,-0.0342932533,-0.0106019993,mean paired difference,1.0,1.0
