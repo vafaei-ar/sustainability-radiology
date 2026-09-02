@@ -20,6 +20,23 @@ TARGET_YEAR = 2024
 PAGE_SIZE = 5000
 USER_AGENT = "sustainability-radiology/1.0"
 
+# The user explicitly identified this broad TriNetX export as the source used for
+# the general-radiology notebook. The audit below reads only source metadata,
+# table names, headers, hashes and row counts. It never exports row-level data.
+CONTROL_DIR = pathlib.Path("/home/asadr/datasets/trinetx/66350692f55db9228fba3206_20240514_224202103_Control")
+CONTROL_ZIP = pathlib.Path("/home/asadr/datasets/trinetx/66350692f55db9228fba3206_20240514_224202103_Control.zip")
+NOTEBOOK_CANDIDATES = [
+    ROOT / "sus_radio.ipynb",
+    pathlib.Path("/home/asadr/works/sus/sus_radio.ipynb"),
+]
+TARGET_DISEASES = {
+    "Breast cancer": "BC",
+    "COPD": "COPD",
+    "Chronic kidney disease": "CKD",
+    "Ischemic heart disease": "IHD",
+    "Colon/Rectal cancer": "CRC",
+}
+
 
 def progress(current: int, total: int, phase: str) -> None:
     raw = os.environ.get("RUNRELAY_PROGRESS_FILE")
@@ -177,23 +194,69 @@ def write_csv(path: pathlib.Path, fields: list[str], rows: list[dict]) -> None:
         w.writerows(rows)
 
 
+def sniff_delimiter(path: pathlib.Path) -> str:
+    if path.suffix.lower() == ".tsv":
+        return "\t"
+    try:
+        with path.open("r", encoding="utf-8-sig", errors="replace", newline="") as f:
+            sample = f.read(8192)
+        return csv.Sniffer().sniff(sample, delimiters=",\t|;").delimiter
+    except Exception:
+        return ","
+
+
 def safe_schema(path: pathlib.Path) -> list[str]:
     suffix = path.suffix.lower()
     try:
         if suffix in {".csv", ".tsv", ".txt"}:
-            delim = "\t" if suffix == ".tsv" else ","
+            delim = sniff_delimiter(path)
             with path.open("r", encoding="utf-8-sig", errors="replace", newline="") as f:
                 row = next(csv.reader(f, delimiter=delim), [])
-            return [str(x).strip()[:120] for x in row[:80]]
+            return [str(x).strip()[:120] for x in row[:120]]
         if suffix == ".json":
             obj = json.loads(path.read_text(encoding="utf-8", errors="replace"))
             if isinstance(obj, dict):
-                return [str(x)[:120] for x in list(obj.keys())[:80]]
+                return [str(x)[:120] for x in list(obj.keys())[:120]]
             if isinstance(obj, list) and obj and isinstance(obj[0], dict):
-                return [str(x)[:120] for x in list(obj[0].keys())[:80]]
+                return [str(x)[:120] for x in list(obj[0].keys())[:120]]
     except Exception:
         return []
     return []
+
+
+def safe_row_count(path: pathlib.Path) -> int | None:
+    if path.suffix.lower() not in {".csv", ".tsv", ".txt"}:
+        return None
+    try:
+        with path.open("rb") as f:
+            lines = sum(chunk.count(b"\n") for chunk in iter(lambda: f.read(8 * 1024 * 1024), b""))
+        return max(0, lines - 1)
+    except Exception:
+        return None
+
+
+def infer_table_role(name: str) -> str:
+    n = name.lower()
+    if re.search(r"diagnos|condition|icd", n):
+        return "diagnosis"
+    if re.search(r"procedure|cpt|hcpcs|px", n):
+        return "procedure"
+    if re.search(r"patient|demograph|person", n):
+        return "patient_demographics"
+    if re.search(r"encounter|visit", n):
+        return "encounter"
+    if re.search(r"lab|observation|vital", n):
+        return "observation"
+    return "other"
+
+
+def has_patient_identifier(fields: list[str]) -> bool:
+    normalized = [nkey(x) for x in fields]
+    return any(
+        x in {"PATIENTID", "PATIENTIDNUMBER", "PATIENT", "PERSONID", "SUBJECTID"}
+        or ("PATIENT" in x and "ID" in x)
+        for x in normalized
+    )
 
 
 def disease_source_readiness() -> dict[str, object]:
@@ -236,9 +299,68 @@ def disease_source_readiness() -> dict[str, object]:
     }
 
 
+def general_radiology_control_audit() -> dict[str, object]:
+    files: list[dict[str, object]] = []
+    allowed_suffixes = {".csv", ".tsv", ".txt", ".json", ".parquet", ".xlsx", ".xls"}
+    if CONTROL_DIR.is_dir():
+        for path in sorted(CONTROL_DIR.rglob("*")):
+            if not path.is_file() or path.suffix.lower() not in allowed_suffixes:
+                continue
+            fields = safe_schema(path)
+            files.append({
+                "relative_path": path.relative_to(CONTROL_DIR).as_posix(),
+                "table_role": infer_table_role(path.name),
+                "size_bytes": path.stat().st_size,
+                "sha256": sha256_file(path),
+                "row_count_excluding_header_if_text": safe_row_count(path),
+                "schema_fields": fields,
+                "has_patient_identifier_field": has_patient_identifier(fields),
+            })
+
+    roles = sorted({str(r["table_role"]) for r in files})
+    diagnosis_tables = [r for r in files if r["table_role"] == "diagnosis"]
+    procedure_tables = [r for r in files if r["table_role"] == "procedure"]
+    patient_tables = [r for r in files if r["table_role"] == "patient_demographics"]
+    patient_id_tables = [r for r in files if r["has_patient_identifier_field"]]
+
+    notebook_status = []
+    for p in NOTEBOOK_CANDIDATES:
+        notebook_status.append({
+            "path": str(p),
+            "exists": p.is_file(),
+            "sha256": sha256_file(p) if p.is_file() else None,
+        })
+
+    return {
+        "purpose": "Reconstruct general-radiology disease-specific imaging utilization from the broad TriNetX control export rather than repeat the stroke study.",
+        "target_diseases": TARGET_DISEASES,
+        "control_directory": str(CONTROL_DIR),
+        "control_directory_exists": CONTROL_DIR.is_dir(),
+        "control_zip": str(CONTROL_ZIP),
+        "control_zip_exists": CONTROL_ZIP.is_file(),
+        "control_zip_size_bytes": CONTROL_ZIP.stat().st_size if CONTROL_ZIP.is_file() else None,
+        "control_zip_sha256": sha256_file(CONTROL_ZIP) if CONTROL_ZIP.is_file() else None,
+        "safe_file_inventory": files,
+        "detected_table_roles": roles,
+        "diagnosis_table_count": len(diagnosis_tables),
+        "procedure_table_count": len(procedure_tables),
+        "patient_demographics_table_count": len(patient_tables),
+        "tables_with_patient_identifier_field": len(patient_id_tables),
+        "ready_for_code_mapping_reconstruction": bool(diagnosis_tables and procedure_tables and patient_id_tables),
+        "notebook_candidate_status": notebook_status,
+        "next_required_logic": [
+            "Recover the exact disease code sets and modality/procedure mappings from sus_radio.ipynb before estimating disease-specific utilization.",
+            "For each disease, define the eligible patient denominator and count radiology procedures by modality on the same analytic time basis.",
+            "Export only aggregate n_patients, n_procedures, utilization and stratification cells; never export patient-level TriNetX rows.",
+            "Map the same disease definitions to GBD burden strata before national scaling.",
+        ],
+        "privacy_rule": "This audit exposes filenames, hashes, schemas and counts only. It does not copy or publish row-level TriNetX records or field values.",
+    }
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
-    progress(0, 6, "Downloading CMS catalog")
+    progress(0, 7, "Downloading CMS catalog")
     catalog, catalog_sha = download_catalog()
 
     cms_ds = catalog_dataset(catalog, CMS_TITLE)
@@ -251,14 +373,14 @@ def main() -> None:
     hcpcs_field = find_field(sample[0], exact=("HCPCS_Cd",), contains=("HCPCS", "CD"))
     desc_field = find_field(sample[0], exact=("HCPCS_Desc",), contains=("HCPCS", "DESC"))
     service_field = find_field(sample[0], exact=("Tot_Srvcs",), contains=("TOT", "SRVC"))
-    progress(1, 6, "Resolved 2024 CMS geography/service schema")
+    progress(1, 7, "Resolved 2024 CMS geography/service schema")
 
     national = fetch_all(cms_url, {geo_field: "National"})
     if not national:
         national = fetch_all(cms_url, {geo_field: "NATIONAL"})
     if not national:
         raise RuntimeError("No national rows found in CMS geography/service dataset")
-    progress(2, 6, f"Downloaded {len(national)} national CMS service rows")
+    progress(2, 7, f"Downloaded {len(national)} national CMS service rows")
 
     rbcs_ds = catalog_dataset(catalog, RBCS_TITLE)
     rbcs_dist = choose_api_distribution(rbcs_ds)
@@ -298,7 +420,7 @@ def main() -> None:
         }
     if not rbcs_map:
         raise RuntimeError("No RBCS Imaging mappings found")
-    progress(3, 6, f"Resolved {len(rbcs_map)} RBCS Imaging HCPCS codes")
+    progress(3, 7, f"Resolved {len(rbcs_map)} RBCS Imaging HCPCS codes")
 
     mapped_rows: list[dict] = []
     unmatched_services = 0.0
@@ -346,10 +468,13 @@ def main() -> None:
     write_csv(OUT / "national_imaging_by_rbcs.csv", ["rbcs_subcategory", "rbcs_family", "total_services", "share_of_imaging_services"], sub_rows)
     write_csv(OUT / "national_imaging_by_modality.csv", ["derived_modality", "total_services", "share_of_imaging_services"], mod_rows)
     write_csv(OUT / "hcpcs_imaging_mapping_audit.csv", ["hcpcs_code", "hcpcs_description", "rbcs_category", "rbcs_subcategory", "rbcs_family", "derived_modality", "total_services"], mapped_rows)
-    progress(4, 6, "Built CMS imaging validation tables")
+    progress(4, 7, "Built CMS imaging validation tables")
 
     readiness = disease_source_readiness()
-    progress(5, 6, "Audited project-local TriNetX and GBD aggregate inputs")
+    progress(5, 7, "Audited project-local aggregate TriNetX and GBD inputs")
+
+    control_audit = general_radiology_control_audit()
+    progress(6, 7, "Audited named broad TriNetX control export for general radiology")
 
     summary = {
         "status": "WP4_CLINICAL_VOLUME_VALIDATION_OK",
@@ -377,13 +502,14 @@ def main() -> None:
             "family_description": r_family_desc,
         },
         "disease_volume_source_readiness": readiness,
-        "interpretation": "CMS Original Medicare fee-for-service Part B service counts are an external utilization validation layer, not full-US examination counts.",
+        "general_radiology_control_audit": control_audit,
+        "interpretation": "CMS Original Medicare fee-for-service Part B service counts are an external validation layer. The broad TriNetX Control export is being audited as the source for disease-specific general-radiology utilization, not as a stroke cohort.",
         "limitations": [
-            "Service counts are billing services and may not equal unique imaging examinations; professional and technical billing structure can affect counts.",
-            "The dataset represents Original Medicare fee-for-service Part B, not Medicare Advantage or the full US population.",
-            "CMS suppresses/redacts selected low-count information for beneficiary privacy.",
-            "Derived modality labels are transparent text-based groupings of RBCS Imaging codes and should be treated as analytic categories, not clinical adjudication.",
-            "The disease-based TriNetX x GBD model is not estimated unless aggregate source inputs are available project-locally and their schemas are verified.",
+            "CMS service counts are billing services and may not equal unique imaging examinations; professional and technical billing structure can affect counts.",
+            "CMS represents Original Medicare fee-for-service Part B, not Medicare Advantage or the full US population.",
+            "Derived CMS modality labels are transparent text-based analytic groupings and are not clinical adjudication.",
+            "No disease-specific TriNetX utilization is estimated until the exact disease code sets and imaging mappings are recovered from the radiology notebook.",
+            "The TriNetX audit reports only metadata, schemas and aggregate counts; no patient-level records or field values are exported.",
         ],
     }
     (OUT / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
@@ -392,33 +518,72 @@ def main() -> None:
     candidate_lines = "\n".join(
         f"- {r['source_type']}: `{r['relative_path']}` ({r['size_bytes']} bytes; sha256 `{r['sha256']}`; fields={r['schema_fields']})"
         for r in candidates
-    ) or "- No project-local TriNetX/GBD candidate files were detected under `data/`."
+    ) or "- No project-local aggregate TriNetX/GBD candidate files were detected under `data/`."
     ready_text = "YES" if readiness["ready_for_disease_scaling"] else "NO"
-    report = f"""# WP4 clinical-volume validation
 
-Status: PASS for CMS external validation; disease-model source readiness: {ready_text}
+    control_files = control_audit["safe_file_inventory"]
+    control_lines = "\n".join(
+        f"- `{r['relative_path']}`: role={r['table_role']}, rows={r['row_count_excluding_header_if_text']}, bytes={r['size_bytes']}, fields={r['schema_fields']}"
+        for r in control_files
+    ) or "- No readable table files were detected in the named Control export directory."
+
+    notebook_lines = "\n".join(
+        f"- `{r['path']}`: exists={r['exists']}, sha256={r['sha256']}"
+        for r in control_audit["notebook_candidate_status"]
+    )
+
+    report = f"""# WP4 clinical-volume validation and general-radiology source reconstruction
+
+Status: PASS for CMS external validation; project-local disease-model source readiness: {ready_text}
+
+## General-radiology direction
+
+The disease model is **not a repeat of the stroke study**. The current target conditions are:
+{chr(10).join(f'- {name} ({abbr})' for name, abbr in TARGET_DISEASES.items())}
+
+The broad TriNetX `Control` export identified by the user is audited as the candidate source for estimating disease-specific imaging utilization. No disease-specific estimates are produced until the exact notebook code definitions are recovered.
+
+### Named TriNetX Control source
+
+- Directory exists: {control_audit['control_directory_exists']}
+- ZIP exists: {control_audit['control_zip_exists']}
+- ZIP sha256: {control_audit['control_zip_sha256']}
+- Diagnosis-like tables: {control_audit['diagnosis_table_count']}
+- Procedure-like tables: {control_audit['procedure_table_count']}
+- Patient/demographic tables: {control_audit['patient_demographics_table_count']}
+- Tables with a patient-identifier field: {control_audit['tables_with_patient_identifier_field']}
+- Ready for code-mapping reconstruction from available tables: {control_audit['ready_for_code_mapping_reconstruction']}
+
+Safe table inventory:
+{control_lines}
+
+Notebook lookup on the bound workstation:
+{notebook_lines}
+
+Only filenames, hashes, column headers and row counts are reported. Row-level TriNetX data and field values are never exported as RunRelay artifacts.
+
+## CMS external validation
 
 Source: CMS `{CMS_TITLE}`, data year {summary['cms_year']}, joined to `{RBCS_TITLE}` discovered from the CMS data catalog at execution time.
 
 National CMS rows downloaded: {len(national):,}. RBCS Imaging HCPCS codes: {len(rbcs_map):,}. Matched imaging HCPCS rows: {len(mapped_rows):,}. Total matched imaging service count: {imaging_total:,.0f}.
 
-This CMS output is an **external validation layer**. It is not a national US examination denominator. CMS service counts reflect Original Medicare fee-for-service Part B billing services and may differ from unique examinations because of billing components and service definitions. Medicare Advantage and non-Medicare populations are not represented.
+This CMS output remains an **external validation layer**, not a full-US examination denominator.
 
-## Disease-based TriNetX x GBD source readiness
+## Project-local TriNetX x GBD readiness
 
 {candidate_lines}
 
-Required aggregate contract for the next gate:
+Next aggregate contract after the notebook definitions are frozen:
 - TriNetX: disease, modality, n_patients, n_procedures; optional year, age, sex, geography.
 - GBD: disease, location, year, measure/population basis, value; optional age and sex.
 - Scaling formula: utilization = n_procedures / n_patients; scaled volume = utilization x GBD disease burden.
-- Only aggregate inputs may be staged. Row-level patient data and PHI must not be placed in this project or declared as RunRelay artifacts.
 
-Raw CMS public data and any project-local source inputs are not declared as RunRelay artifacts. Only derived aggregate/audit outputs are exported.
+Raw CMS public data and raw TriNetX data are not declared as RunRelay artifacts. Only derived aggregate/audit outputs are exported.
 """
     (OUT / "validation_report.md").write_text(report, encoding="utf-8")
-    progress(6, 6, "WP4 clinical-volume validation complete")
-    print("WP4_CLINICAL_VOLUME_VALIDATION_OK")
+    progress(7, 7, "WP4 general-radiology source audit complete")
+    print("WP4_GENERAL_RADIOLOGY_SOURCE_AUDIT_OK")
     print(json.dumps(summary, sort_keys=True))
 
 
