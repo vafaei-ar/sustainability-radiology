@@ -517,3 +517,17 @@ tasks:
       - results/wp4/cms_imaging_volume/hcpcs_imaging_mapping_audit.csv
       - results/wp4/cms_imaging_volume/summary.json
       - results/wp4/cms_imaging_volume/validation_report.md
+
+  wp4_reconstruct_general_radiology_logic:
+    description: Search the user-authorized workstation roots for the exact sus_radio.ipynb notebook, extract only relevant notebook source code/markdown for the BC, COPD, CKD, IHD and CRC disease and imaging logic, and read only headers of relevant broad TriNetX Control tables without exporting notebook outputs or patient-level values.
+    command:
+      - python3
+      - scripts/reconstruct_wp4_general_radiology_logic.py
+    approval: manual
+    timeout_minutes: 15
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp4/general_radiology_logic/notebook_logic.md
+      - results/wp4/general_radiology_logic/logic_summary.json
+      - results/wp4/general_radiology_logic/relevant_table_schemas.csv
