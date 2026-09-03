@@ -20,7 +20,7 @@ WP1 benchmark normalization, WP3 prospective VLM benchmarking, WP4 clinical-volu
 
 For WP4, the original `sus_radio.ipynb` logic is recovered. It is provenance, not executable source of truth. The corrected disease-based estimator now uses all eligible disease patient-years, including zero-imaging patient-years. The primary utilization window is the full diagnosis calendar year. The notebook's +/-31-day window is retained as a structural sensitivity. Patients with multiple target diseases remain eligible for each disease cohort. Missing TriNetX strata are not replaced by pooled disease rates.
 
-The detailed WP4 design, corrections, limitations, validation gates, and run commands are in [`docs/wp4_general_radiology.md`](docs/wp4_general_radiology.md). Method decisions are in [`docs/decisions.md`](docs/decisions.md). The complete study plan remains in [`PLAN.md`](PLAN.md).
+The detailed WP4 design, corrections, limitations, validation gates, and execution contract are in [`docs/wp4_general_radiology.md`](docs/wp4_general_radiology.md). Method decisions are in [`docs/decisions.md`](docs/decisions.md). The complete study plan remains in [`PLAN.md`](PLAN.md).
 
 ## Important benchmark audit
 
@@ -35,31 +35,31 @@ The legacy `Kg_carbon(batch=1000)` field is not used as a normalized inference e
 
 ## WP4 execution
 
-Run synthetic validation first:
+The authoritative RunRelay task is:
+
+```text
+wp4_general_radiology_clinical_volume
+```
+
+It executes `scripts/run_wp4_general_radiology_runrelay.py` on the bound workstation. The task resolves the frozen legacy ZIP and GBD inputs, runs synthetic regression tests, extracts aggregate 2018-2019 TriNetX disease-by-modality utilization, and scales observed strata to GBD prevalence. The task declares aggregate artifacts only. It never exports patient-level rows.
+
+The underlying scripts remain independently runnable for debugging:
 
 ```bash
 python3 scripts/test_wp4_general_radiology_clinical_volume.py
-```
 
-Run the aggregate TriNetX extraction on the bound workstation:
-
-```bash
 python3 scripts/run_wp4_general_radiology_clinical_volume.py \
-  --trinetx-dir /home/asadr/datasets/TriNetX/66350692f55db9228fba3206_20240514_224202103_Control \
-  --zip-map /home/asadr/datasets/geodata/zip_code_database.csv \
+  --trinetx-dir /home/asadr/datasets/trinetx/66350692f55db9228fba3206_20240514_224202103_Control \
+  --zip-map /path/to/zip_code_database.csv \
   --output-dir results/wp4/general_radiology
-```
 
-When the original IHME GBD CSV is available on the execution host, scale the aggregate utilization separately:
-
-```bash
 python3 scripts/scale_wp4_general_radiology_gbd.py \
   --utilization-dir results/wp4/general_radiology \
   --gbd-file /path/to/IHME-GBD_2021_DATA-80d29511-1.csv \
   --output-dir results/wp4/general_radiology_gbd
 ```
 
-The GBD file is intentionally not committed to this public repository.
+The auxiliary source files are intentionally not committed to this public repository.
 
 ## Planned workflow
 
