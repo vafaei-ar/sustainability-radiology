@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""RunRelay entry point for corrected WP4 disease-based clinical volume.
+"""RunRelay entry point for adjudicated WP4 disease-based clinical volume.
 
 The wrapper resolves frozen inputs, ensures a pandas-capable project-local
-analysis runtime, runs synthetic validation, and extracts aggregate TriNetX
-utilization. GBD scaling runs only when the original IHME CSV is present.
-No patient-level artifact is written.
+analysis runtime, runs the adjudicated 2018-2019 TriNetX extraction, and holds
+GBD scaling until mapping and missingness QC are reviewed. No patient-level
+artifact is written.
 """
 from __future__ import annotations
 
@@ -19,7 +19,6 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CONTROL_DIR = Path("/home/asadr/datasets/trinetx/66350692f55db9228fba3206_20240514_224202103_Control")
 UTIL_OUT = ROOT / "results" / "wp4" / "general_radiology"
-GBD_OUT = ROOT / "results" / "wp4" / "general_radiology_gbd"
 RUNTIME_DIR = ROOT / ".venv-wp4"
 REQUIREMENTS = ROOT / "requirements-wp4.txt"
 ZIP_NAME = "zip_code_database.csv"
@@ -177,6 +176,7 @@ def main() -> None:
         "zip_map_sha256": sha256_file(zip_map),
         "analysis_python": str(analysis_python),
         "wp4_requirements_sha256": sha256_file(REQUIREMENTS),
+        "mapping_profile": "adjudicated_pre_gbd_v1",
         "gbd_file": str(gbd_file) if gbd_file else None,
         "gbd_file_sha256": sha256_file(gbd_file) if gbd_file else None,
         "gbd_input_status": "available" if gbd_file else "not_found_on_execution_host",
@@ -184,54 +184,34 @@ def main() -> None:
     }
     (UTIL_OUT / "resolved_inputs.json").write_text(json.dumps(resolved, indent=2) + "\n", encoding="utf-8")
 
-    progress("synthetic_validation", "Running corrected WP4 synthetic regression tests")
-    run([str(analysis_python), "scripts/test_wp4_general_radiology_clinical_volume.py"])
-
-    progress("trinetx_extraction", "Extracting aggregate disease-by-modality utilization from TriNetX")
+    progress("trinetx_extraction", "Running adjudicated WP4 mapping and missingness analysis")
     run([
         str(analysis_python),
-        "scripts/run_wp4_general_radiology_clinical_volume.py",
+        "scripts/run_wp4_general_radiology_adjudicated.py",
         "--trinetx-dir", str(CONTROL_DIR),
         "--zip-map", str(zip_map),
         "--output-dir", str(UTIL_OUT),
     ])
 
-    if gbd_file is not None:
-        GBD_OUT.mkdir(parents=True, exist_ok=True)
-        progress("gbd_scaling", "Scaling observed TriNetX strata to GBD 2021 prevalence")
-        run([
-            str(analysis_python),
-            "scripts/scale_wp4_general_radiology_gbd.py",
-            "--utilization-dir", str(UTIL_OUT),
-            "--gbd-file", str(gbd_file),
-            "--output-dir", str(GBD_OUT),
-        ])
-        gbd_scaling_status = "completed"
-        overall_status = "WP4_GENERAL_RADIOLOGY_RUNRELAY_OK"
-    else:
-        gbd_scaling_status = "pending_external_gbd_input"
-        overall_status = "WP4_GENERAL_RADIOLOGY_TRINETX_OK_GBD_PENDING"
-        print(
-            "GBD input was not found on the execution host. "
-            "TriNetX aggregate extraction completed; GBD scaling is pending.",
-            flush=True,
-        )
-
+    run_meta = json.loads((UTIL_OUT / "run_metadata.json").read_text(encoding="utf-8"))
     summary = {
-        "status": overall_status,
+        "status": "WP4_GENERAL_RADIOLOGY_ADJUDICATED_TRINETX_OK_GBD_HELD",
         "primary_estimand": "annual disease patient-year imaging utilization",
         "sensitivity_estimand": "imaging within +/-31 days of qualifying diagnosis",
+        "mapping_profile": "adjudicated_pre_gbd_v1",
+        "breast_mapping": "removed 0633T-0638T for 2018-2019; added mammography/tomosynthesis 77063,77065,77066,77067,G0279",
+        "copd_icd9_mapping": "491,492,496",
+        "missingness_selection_analysis": run_meta.get("missingness_sensitivity"),
         "zero_imaging_patient_years_in_denominator": True,
         "multi_target_disease_patients_retained": True,
         "cross_stratum_fallback": False,
         "patient_level_artifacts": False,
-        "gbd_scaling_status": gbd_scaling_status,
+        "gbd_scaling_status": "held_pending_adjudicated_qc",
         "analysis_python": str(analysis_python),
-        "copd_icd9_status": "provisional source definition 490-496; adjudication required before analysis freeze",
         "resolved_inputs": resolved,
     }
     (UTIL_OUT / "runrelay_summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
-    progress("complete", "WP4 corrected TriNetX clinical-volume run complete")
+    progress("complete", "Adjudicated WP4 TriNetX run complete; GBD scaling held for QC")
     print(json.dumps(summary, indent=2), flush=True)
 
 
