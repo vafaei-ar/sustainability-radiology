@@ -557,3 +557,19 @@ tasks:
       - results/wp4/general_radiology_gbd/gbd_scaled_imaging_national.csv
       - results/wp4/general_radiology_gbd/gbd_strata_missing_trinetx_rates.csv
       - results/wp4/general_radiology_gbd/gbd_scaling_metadata.json
+
+  wp4_trinetx_cms_aggregate_validation:
+    description: Read only previously generated aggregate TriNetX and CMS WP4 artifacts, quantify cohort crosswalk completeness and annual-versus-diagnosis-window sensitivity, and audit modality-scope mismatches before GBD scaling.
+    command:
+      - python3
+      - scripts/analyze_wp4_trinetx_cms_validation.py
+    approval: manual
+    timeout_minutes: 10
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp4/trinetx_cms_validation/cohort_qc_summary.csv
+      - results/wp4/trinetx_cms_validation/window_sensitivity_summary.csv
+      - results/wp4/trinetx_cms_validation/cms_modality_context.csv
+      - results/wp4/trinetx_cms_validation/summary.json
+      - results/wp4/trinetx_cms_validation/validation_report.md
