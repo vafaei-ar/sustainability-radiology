@@ -531,3 +531,29 @@ tasks:
       - results/wp4/general_radiology_logic/notebook_logic.md
       - results/wp4/general_radiology_logic/logic_summary.json
       - results/wp4/general_radiology_logic/relevant_table_schemas.csv
+
+  wp4_general_radiology_clinical_volume:
+    description: Run the corrected WP4 disease-based clinical-volume pipeline: resolve frozen workstation inputs, run synthetic tests, estimate aggregate 2018-2019 TriNetX disease-by-modality utilization with zero-imaging patient-years retained, and scale observed strata to GBD prevalence without pooled fallback.
+    command:
+      - python3
+      - scripts/run_wp4_general_radiology_runrelay.py
+    approval: manual
+    timeout_minutes: 180
+    requires_gpu: false
+    working_directory: .
+    artifacts:
+      - results/wp4/general_radiology/resolved_inputs.json
+      - results/wp4/general_radiology/cohort_qc.csv
+      - results/wp4/general_radiology/ambiguous_zip3_prefixes.csv
+      - results/wp4/general_radiology/disease_diagnosis_prefixes.csv
+      - results/wp4/general_radiology/cpt_disease_modality_map.csv
+      - results/wp4/general_radiology/trinetx_imaging_utilization_annual_long.csv
+      - results/wp4/general_radiology/trinetx_imaging_utilization_diagnosis31d_long.csv
+      - results/wp4/general_radiology/trinetx_imaging_utilization_national_window_comparison.csv
+      - results/wp4/general_radiology/run_metadata.json
+      - results/wp4/general_radiology/runrelay_summary.json
+      - results/wp4/general_radiology_gbd/gbd_us_state_prevalence_2018_2019.csv
+      - results/wp4/general_radiology_gbd/gbd_scaled_imaging_by_stratum.csv
+      - results/wp4/general_radiology_gbd/gbd_scaled_imaging_national.csv
+      - results/wp4/general_radiology_gbd/gbd_strata_missing_trinetx_rates.csv
+      - results/wp4/general_radiology_gbd/gbd_scaling_metadata.json
