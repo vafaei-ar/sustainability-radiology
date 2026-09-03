@@ -533,7 +533,7 @@ tasks:
       - results/wp4/general_radiology_logic/relevant_table_schemas.csv
 
   wp4_general_radiology_clinical_volume:
-    description: Run the corrected WP4 disease-based clinical-volume pipeline: resolve frozen workstation inputs, run synthetic tests, estimate aggregate 2018-2019 TriNetX disease-by-modality utilization with zero-imaging patient-years retained, and scale observed strata to GBD prevalence without pooled fallback.
+    description: 'Run the corrected WP4 disease-based clinical-volume pipeline: resolve frozen workstation inputs, run synthetic tests, estimate aggregate 2018-2019 TriNetX disease-by-modality utilization with zero-imaging patient-years retained, and scale observed strata to GBD prevalence without pooled fallback.'
     command:
       - python3
       - scripts/run_wp4_general_radiology_runrelay.py
