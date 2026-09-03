@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Adjudicated WP4 TriNetX extraction before GBD scaling.
 
-This run changes only two source mappings that failed the pre-GBD review:
-1. Breast cancer: remove breast CT Category III codes 0633T-0638T because they
-   became effective in 2021, after the 2018-2019 analytic period. Add standard
-   mammography/tomosynthesis codes used during 2018-2019.
-2. COPD ICD-9-CM: restrict the broad 490-496 source range to 491, 492 and 496.
+This run freezes the reviewed 2018-2019 disease and imaging mappings. Breast MRI
+uses legacy CPT 77058/77059 in 2018 and replacement CPT 77046-77049 in 2019.
+Breast CT Category III codes 0633T-0638T remain excluded because they became
+effective in 2021. COPD ICD-9-CM remains restricted to 491, 492 and 496.
 
 The script writes only aggregate outputs. It also compares imaging utilization
 between GBD-compatible and incomplete-demographic disease patient-years to
@@ -19,7 +18,6 @@ import pandas as pd
 
 import run_wp4_general_radiology_clinical_volume as base
 
-# Freeze the adjudicated mappings for the 2018-2019 analysis.
 base.DX = {
     **base.DX,
     "COPD": {"ICD-9-CM": ("491", "492", "496"), "ICD-10-CM": ("J44",)},
@@ -28,22 +26,29 @@ base.CPT = {
     **base.CPT,
     "BC": {
         "Mammography": ("77063", "77065", "77066", "77067", "G0279"),
-        "MRI": ("77046", "77047", "77048", "77049"),
+        "MRI": ("77058", "77059", "77046", "77047", "77048", "77049"),
         "US": ("76641", "76642"),
     },
 }
 
+BC_MRI_BY_YEAR = {
+    2018: {"77058", "77059"},
+    2019: {"77046", "77047", "77048", "77049"},
+}
+
 MAPPING_DECISIONS = {
     "analysis_years": [2018, 2019],
+    "mapping_profile": "adjudicated_pre_gbd_v2",
     "breast_cancer": {
         "removed_codes": ["0633T", "0634T", "0635T", "0636T", "0637T", "0638T"],
         "reason": "Breast CT Category III codes 0633T-0638T became effective 2021-01-01 and cannot represent 2018-2019 utilization.",
-        "added_mammography_codes": ["77063", "77065", "77066", "77067", "G0279"],
-        "counting_rule": "Same patient+disease+year+date+modality is one event, so add-on tomosynthesis does not double-count same-day mammography.",
-        "evidence_basis": [
-            "CMS Medicare Claims Processing Manual: 77065/77066/77067 used for mammography on/after 2018-01-01; 77063 and G0279 available during the analytic period.",
-            "ACR 2021 Breast Imaging FAQ and CMS 2021 coding update: 0633T-0638T effective 2021-01-01.",
-        ],
+        "mammography_codes": ["77063", "77065", "77066", "77067", "G0279"],
+        "mri_codes_by_year": {
+            "2018": ["77058", "77059"],
+            "2019": ["77046", "77047", "77048", "77049"],
+        },
+        "mri_reason": "CPT 77058/77059 were the breast MRI codes used before 2019; CPT 77046-77049 replaced them beginning 2019-01-01.",
+        "counting_rule": "Same patient+disease+year+date+modality is one event, so same-day add-on or paired codes do not double-count the modality event.",
     },
     "copd": {
         "source_icd9_prefixes": ["490", "491", "492", "493", "494", "495", "496"],
@@ -52,6 +57,55 @@ MAPPING_DECISIONS = {
         "reason": "491 chronic bronchitis, 492 emphysema and 496 chronic airway obstruction align with COPD; 493 asthma, 494 bronchiectasis and 495 extrinsic allergic alveolitis are distinct disease groups, while 490 is nonspecific bronchitis.",
     },
 }
+
+
+def read_px_year_aware(path: Path, cohort: pd.DataFrame, chunksize: int) -> pd.DataFrame:
+    """Read selected imaging with strict year-specific breast MRI code validity."""
+    cmap = base.cpt_frame()
+    lookup: dict[str, list[tuple[str, str]]] = {}
+    for r in cmap.itertuples(index=False):
+        lookup.setdefault(r.CPTcode, []).append((r.disease, r.modality))
+
+    ids = set(cohort.patient_id.astype(str))
+    dset = {
+        d: set(zip(g.patient_id.astype(str), g.year.astype(int)))
+        for d, g in cohort.groupby("disease")
+    }
+    out: list[pd.DataFrame] = []
+    for x in pd.read_csv(
+        path,
+        dtype="string",
+        usecols=["patient_id", "code", "date"],
+        chunksize=chunksize,
+    ):
+        x = x[x.patient_id.isin(ids)].copy()
+        x["code"] = base.norm(x.code)
+        x = x[x.code.isin(lookup)]
+        if x.empty:
+            continue
+        x["date8"] = base.date8(x.date)
+        x["year"] = pd.to_numeric(x.date8.str[:4], errors="coerce")
+        x = x[x.year.isin(base.YEARS)]
+        rows: list[tuple[object, str, int, object, str]] = []
+        for r in x[["patient_id", "code", "date8", "year"]].itertuples(index=False):
+            year = int(r.year)
+            for disease, modality in lookup.get(r.code, []):
+                if disease == "BC" and modality == "MRI" and r.code not in BC_MRI_BY_YEAR[year]:
+                    continue
+                if (str(r.patient_id), year) in dset[disease]:
+                    rows.append((r.patient_id, disease, year, r.date8, modality))
+        if rows:
+            out.append(
+                pd.DataFrame(
+                    rows,
+                    columns=["patient_id", "disease", "year", "date8", "modality"],
+                )
+            )
+    if not out:
+        return pd.DataFrame(columns=["patient_id", "disease", "year", "date8", "modality"])
+    return pd.concat(out, ignore_index=True).drop_duplicates(
+        ["patient_id", "disease", "year", "date8", "modality"]
+    )
 
 
 def missingness_utilization(cohort: pd.DataFrame, events: pd.DataFrame) -> pd.DataFrame:
@@ -128,8 +182,8 @@ def main() -> None:
     amb.to_csv(o / "ambiguous_zip3_prefixes.csv", index=False)
     qc.to_csv(o / "cohort_qc.csv", index=False)
 
-    base.prog(3, 8, "extract adjudicated disease-relevant imaging")
-    ev = base.read_px(pxfile, cohort, a.chunksize)
+    base.prog(3, 8, "extract adjudicated disease-relevant imaging with year-aware breast MRI")
+    ev = read_px_year_aware(pxfile, cohort, a.chunksize)
 
     base.prog(4, 8, "aggregate adjudicated annual utilization")
     annual = base.aggregate(cs, ev, "annual")
@@ -164,7 +218,7 @@ def main() -> None:
         "years": list(base.YEARS),
         "primary_window": "annual",
         "sensitivity_window": "diagnosis31d",
-        "mapping_profile": "adjudicated_pre_gbd_v1",
+        "mapping_profile": "adjudicated_pre_gbd_v2",
         "mapping_decisions": MAPPING_DECISIONS,
         "zero_imaging_patient_years_in_denominator": True,
         "multi_target_disease_patients_excluded": False,
