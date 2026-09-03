@@ -64,6 +64,8 @@ estimated procedures = procedures_per_patient x GBD prevalence
 
 GBD lower and upper prevalence bounds are scaled separately. Missing TriNetX strata remain missing. No national or pooled fallback rate is substituted. Stratum coverage is an explicit output.
 
+The original IHME CSV is not committed to this public repository. RunRelay performs GBD scaling only when the exact source file is present on the execution host. Absence of that file does not invalidate or block the TriNetX utilization stage. In that case, `runrelay_summary.json` records GBD scaling as pending and the aggregate TriNetX outputs remain the canonical WP4 clinical-utilization artifacts.
+
 This is not the final uncertainty model. WP7 will propagate utilization, prevalence, workload, benchmark-energy, adoption, and carbon-intensity uncertainty jointly.
 
 ## Structural limitation
@@ -83,11 +85,16 @@ wp4_general_radiology_clinical_volume
 It runs `scripts/run_wp4_general_radiology_runrelay.py` at an exact repository commit on the fixed project workstation. The wrapper:
 
 1. verifies the frozen TriNetX Control directory;
-2. resolves `zip_code_database.csv` and `IHME-GBD_2021_DATA-80d29511-1.csv` under authorized workstation roots and records SHA256 checksums;
-3. runs the synthetic regression suite;
-4. runs aggregate TriNetX extraction;
-5. runs GBD scaling;
-6. writes only the safe aggregate artifacts declared in `.runrelay/project.yaml`.
+2. resolves `zip_code_database.csv` and records its SHA256 checksum;
+3. searches for the optional `IHME-GBD_2021_DATA-80d29511-1.csv` source without making it a prerequisite for TriNetX extraction;
+4. resolves a Python interpreter that can import pandas, preferring the project-local WP4 runtime, then existing approved project/conda runtimes;
+5. if no pandas-capable interpreter exists, creates `.venv-wp4` inside the project and installs the pinned dependencies in `requirements-wp4.txt`;
+6. runs the synthetic regression suite with that same analysis interpreter;
+7. runs aggregate TriNetX extraction;
+8. runs GBD scaling only when the IHME source is available;
+9. writes only the safe aggregate artifacts declared in `.runrelay/project.yaml`.
+
+The system Python used by the RunRelay control layer is not assumed to contain scientific packages. The analysis runtime is therefore resolved explicitly and recorded in `resolved_inputs.json`. The project-local `.venv-wp4/` directory is ignored by Git and is not an artifact.
 
 If multiple non-identical copies of an auxiliary source file are found, the task fails rather than choosing one silently. RunRelay progress is phase-only because a trustworthy total row/chunk denominator is not known before reading the large clinical files. No percentage or ETA is fabricated by the project code.
 
@@ -109,7 +116,7 @@ results/wp4/general_radiology/
   runrelay_summary.json
 ```
 
-GBD scaling writes:
+GBD scaling writes, when the source is available:
 
 ```text
 results/wp4/general_radiology_gbd/
@@ -137,17 +144,19 @@ Only after these gates should WP7 combine clinical volume with AI energy and gri
 
 ## Direct debugging commands
 
-The RunRelay task is preferred. The component scripts remain runnable for debugging:
+The RunRelay task is preferred. If direct execution is needed, first use a pandas-capable environment. The same pinned WP4 runtime can be created locally with:
 
 ```bash
-python3 scripts/test_wp4_general_radiology_clinical_volume.py
+python3 -m venv .venv-wp4
+.venv-wp4/bin/python -m pip install -r requirements-wp4.txt
+.venv-wp4/bin/python scripts/test_wp4_general_radiology_clinical_volume.py
 
-python3 scripts/run_wp4_general_radiology_clinical_volume.py \
+.venv-wp4/bin/python scripts/run_wp4_general_radiology_clinical_volume.py \
   --trinetx-dir /home/asadr/datasets/trinetx/66350692f55db9228fba3206_20240514_224202103_Control \
   --zip-map /path/to/zip_code_database.csv \
   --output-dir results/wp4/general_radiology
 
-python3 scripts/scale_wp4_general_radiology_gbd.py \
+.venv-wp4/bin/python scripts/scale_wp4_general_radiology_gbd.py \
   --utilization-dir results/wp4/general_radiology \
   --gbd-file /path/to/IHME-GBD_2021_DATA-80d29511-1.csv \
   --output-dir results/wp4/general_radiology_gbd
