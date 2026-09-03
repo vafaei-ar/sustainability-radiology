@@ -176,7 +176,7 @@ def main() -> None:
         "zip_map_sha256": sha256_file(zip_map),
         "analysis_python": str(analysis_python),
         "wp4_requirements_sha256": sha256_file(REQUIREMENTS),
-        "mapping_profile": "adjudicated_pre_gbd_v1",
+        "mapping_profile": "adjudicated_pre_gbd_v2",
         "gbd_file": str(gbd_file) if gbd_file else None,
         "gbd_file_sha256": sha256_file(gbd_file) if gbd_file else None,
         "gbd_input_status": "available" if gbd_file else "not_found_on_execution_host",
@@ -184,7 +184,7 @@ def main() -> None:
     }
     (UTIL_OUT / "resolved_inputs.json").write_text(json.dumps(resolved, indent=2) + "\n", encoding="utf-8")
 
-    progress("trinetx_extraction", "Running adjudicated WP4 mapping and missingness analysis")
+    progress("trinetx_extraction", "Running adjudicated WP4 mapping with year-aware breast MRI and missingness analysis")
     run([
         str(analysis_python),
         "scripts/run_wp4_general_radiology_adjudicated.py",
@@ -198,8 +198,8 @@ def main() -> None:
         "status": "WP4_GENERAL_RADIOLOGY_ADJUDICATED_TRINETX_OK_GBD_HELD",
         "primary_estimand": "annual disease patient-year imaging utilization",
         "sensitivity_estimand": "imaging within +/-31 days of qualifying diagnosis",
-        "mapping_profile": "adjudicated_pre_gbd_v1",
-        "breast_mapping": "removed 0633T-0638T for 2018-2019; added mammography/tomosynthesis 77063,77065,77066,77067,G0279",
+        "mapping_profile": "adjudicated_pre_gbd_v2",
+        "breast_mapping": "mammography/tomosynthesis 77063,77065,77066,77067,G0279; breast MRI 77058/77059 in 2018 and 77046-77049 in 2019; 0633T-0638T excluded",
         "copd_icd9_mapping": "491,492,496",
         "missingness_selection_analysis": run_meta.get("missingness_sensitivity"),
         "zero_imaging_patient_years_in_denominator": True,
