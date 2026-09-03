@@ -4,59 +4,74 @@ This repository contains the reproducible modeling framework for estimating the 
 
 ## Study concept
 
-The model links five components:
-
-1. disease-specific radiology utilization,
-2. national disease or procedure volume,
-3. modality-specific AI workload,
-4. measured model and GPU energy use,
-5. geographic electricity carbon intensity.
-
-The intended core calculation is:
+The model links five components: disease-specific radiology utilization, national disease or procedure volume, modality-specific AI workload, measured model/GPU energy use, and geographic electricity carbon intensity.
 
 ```text
 estimated examinations = utilization rate x population/procedure volume
-AI energy = examinations x AI workload per examination x energy per inference
+AI energy = examinations x AI workload per examination x measured energy per inference
 CO2eq = AI energy x grid carbon intensity
 ```
 
-The study extends prior sustainability modeling in digital pathology and stroke imaging. The new radiology model will explicitly evaluate model/task complexity, 2D versus 3D workload, GPU hardware, AI adoption, and carbon-aware processing.
+The study extends prior sustainability modeling in digital pathology and stroke imaging. It explicitly evaluates task/model complexity, 2D versus 3D workload, GPU hardware, VLM size/optimization, AI adoption, and carbon-aware processing.
+
+## Current analysis status
+
+WP1 benchmark normalization, WP3 prospective VLM benchmarking, WP4 clinical-volume reconstruction, and WP5 annual grid-emissions extraction are active.
+
+For WP4, the original `sus_radio.ipynb` logic is recovered. It is provenance, not executable source of truth. The corrected disease-based estimator now uses all eligible disease patient-years, including zero-imaging patient-years. The primary utilization window is the full diagnosis calendar year. The notebook's +/-31-day window is retained as a structural sensitivity. Patients with multiple target diseases remain eligible for each disease cohort. Missing TriNetX strata are not replaced by pooled disease rates.
+
+The detailed WP4 design, corrections, limitations, validation gates, and run commands are in [`docs/wp4_general_radiology.md`](docs/wp4_general_radiology.md). Method decisions are in [`docs/decisions.md`](docs/decisions.md). The complete study plan remains in [`PLAN.md`](PLAN.md).
 
 ## Important benchmark audit
 
-The historical MONAI benchmark scripts execute 5,000 forward-pass iterations for each recorded run. Therefore, energy normalization must use the total number of processed samples:
+Historical MONAI scripts execute 5,000 forward-pass iterations per recorded run. Energy normalization must therefore use the total number of processed samples:
 
 ```text
 n_samples = n_iterations x batch_size
-energy_per_1000_inferences = total_energy_kWh / n_samples x 1000
+energy_per_1000_inferences = total_energy / n_samples x 1000
 ```
 
-Some legacy CSV files contain a column named `Kg_carbon(batch=1000)` calculated as `1000 * Kg_carbon / n_batch`. That expression does not include the 5,000 benchmark iterations and must not be used directly for the new analysis. The new pipeline will recalculate normalized energy from raw run totals and benchmark metadata.
+The legacy `Kg_carbon(batch=1000)` field is not used as a normalized inference endpoint.
 
-This distinction is critical. Population extrapolation based on the legacy normalized carbon column would overestimate per-inference emissions by approximately the number of benchmark iterations if interpreted as emissions for 1,000 individual inferences.
+## WP4 execution
+
+Run synthetic validation first:
+
+```bash
+python3 scripts/test_wp4_general_radiology_clinical_volume.py
+```
+
+Run the aggregate TriNetX extraction on the bound workstation:
+
+```bash
+python3 scripts/run_wp4_general_radiology_clinical_volume.py \
+  --trinetx-dir /home/asadr/datasets/TriNetX/66350692f55db9228fba3206_20240514_224202103_Control \
+  --zip-map /home/asadr/datasets/geodata/zip_code_database.csv \
+  --output-dir results/wp4/general_radiology
+```
+
+When the original IHME GBD CSV is available on the execution host, scale the aggregate utilization separately:
+
+```bash
+python3 scripts/scale_wp4_general_radiology_gbd.py \
+  --utilization-dir results/wp4/general_radiology \
+  --gbd-file /path/to/IHME-GBD_2021_DATA-80d29511-1.csv \
+  --output-dir results/wp4/general_radiology_gbd
+```
+
+The GBD file is intentionally not committed to this public repository.
 
 ## Planned workflow
 
-- audit and normalize MONAI/GPU benchmark data
-- define one inference and one radiology examination computational workload
-- estimate disease-specific utilization from TriNetX
-- scale to national burden using GBD and/or observed CMS procedure volumes
-- characterize available radiology AI tasks using FDA-authorized AI devices
-- model adoption scenarios
-- convert energy to CO2eq using geographic carbon intensity
-- quantify uncertainty and sensitivity
-- compare mitigation strategies: efficient model, efficient GPU, and carbon-aware processing
+- normalize historical MONAI/GPU measurements and preserve architecture-matched comparisons;
+- benchmark prospective radiology VLMs under a controlled protocol;
+- derive disease-based TriNetX imaging utilization with the corrected WP4 estimator;
+- scale disease-based utilization to GBD prevalence with explicit stratum coverage;
+- maintain an independent CMS procedure-volume track for external validation;
+- derive clinical workload multipliers rather than equating one benchmark tensor with one examination;
+- model explicit AI adoption scenarios;
+- use EPA eGRID as the primary annual grid-emissions source;
+- propagate uncertainty across clinical volume, workload, energy, adoption, and grid intensity;
+- compare mitigation through model/hardware efficiency, quantization/workload reduction, and carbon-aware deployment.
 
-## Repository structure
-
-```text
-config/        model assumptions and scenario definitions
-data/          local/raw data placeholders and data documentation
-notebooks/     exploratory and reporting notebooks
-scripts/       command-line analysis entry points
-src/           reusable modeling code
-tests/         unit tests
-results/       generated tables and figures
-```
-
-Raw proprietary or large clinical data must not be committed to this public repository.
+Raw proprietary clinical data and patient-level outputs must never be committed to this public repository.
