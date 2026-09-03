@@ -50,3 +50,19 @@ EPA eGRID will be the primary open annual US electricity CO2e source. Electricit
 ## 2026-08-29: CMS role
 
 CMS Medicare procedure counts will be used as observed external validation and a Medicare-specific analysis, not as direct total-US imaging volume without population adjustment.
+
+## 2026-09-02: WP4 general-radiology estimator replaces the source notebook implementation
+
+The original `sus_radio.ipynb` is available and its BC, COPD, CKD, CRC, IHD, CPT, TriNetX, and GBD logic has been recovered. The notebook is treated as provenance, not executable source of truth.
+
+The corrected WP4 disease-based estimator uses all disease patient-years with a qualifying principal diagnosis in 2018 or 2019. Zero-imaging patient-years remain in the utilization denominator. Patients with more than one target disease are not excluded. Utilization is stratified by disease, year, US state, sex, exact GBD age group, and prespecified modality.
+
+The primary utilization window is the full diagnosis calendar year. The notebook's +/-31-day diagnosis window is retained as a structural sensitivity analysis. This choice is explicit because GBD scaling uses annual prevalence, while the source notebook's short episode window targets a different construct.
+
+The pipeline does not fall back from missing state-sex-age-year strata to pooled disease patients. Missing strata remain missing and coverage is reported. Same-day imaging is deduplicated to one event per patient, disease, modality, and day. GBD US states are selected by location ID to prevent the country Georgia from contaminating the US state Georgia.
+
+CRC ICD-10 is corrected from `C18` alone to `C18`, `C19`, and `C20`. The source COPD ICD-9 range `490-496` is retained only provisionally because it includes diagnoses beyond strict COPD. COPD coding must be adjudicated before manuscript freeze.
+
+The TriNetX denominator remains a diagnosis-in-year cohort and is not identical to GBD prevalence. Disease-based national estimates therefore remain a modeling assumption and must be validated against the independent CMS procedure-based track before WP7 integration.
+
+The corrected implementation separates TriNetX extraction from GBD scaling. This keeps the first execution independent of the unconfirmed workstation path for the IHME source. `scripts/scale_wp4_general_radiology_gbd.py` is the second stage once the original GBD CSV is available on the execution host.
