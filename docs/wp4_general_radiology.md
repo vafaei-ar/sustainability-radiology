@@ -72,12 +72,32 @@ The TriNetX denominator is a diagnosis-in-year patient-year cohort. GBD represen
 
 That assumption is a model component, not an observed fact. WP4 must compare the resulting volume magnitude and modality distribution against the independent CMS procedure-based track. Material disagreement must trigger sensitivity analysis or model revision before WP7 integration.
 
+## RunRelay execution contract
+
+The authoritative named task is:
+
+```text
+wp4_general_radiology_clinical_volume
+```
+
+It runs `scripts/run_wp4_general_radiology_runrelay.py` at an exact repository commit on the fixed project workstation. The wrapper:
+
+1. verifies the frozen TriNetX Control directory;
+2. resolves `zip_code_database.csv` and `IHME-GBD_2021_DATA-80d29511-1.csv` under authorized workstation roots and records SHA256 checksums;
+3. runs the synthetic regression suite;
+4. runs aggregate TriNetX extraction;
+5. runs GBD scaling;
+6. writes only the safe aggregate artifacts declared in `.runrelay/project.yaml`.
+
+If multiple non-identical copies of an auxiliary source file are found, the task fails rather than choosing one silently. RunRelay progress is phase-only because a trustworthy total row/chunk denominator is not known before reading the large clinical files. No percentage or ETA is fabricated by the project code.
+
 ## Aggregate outputs
 
 TriNetX extraction writes:
 
 ```text
 results/wp4/general_radiology/
+  resolved_inputs.json
   cohort_qc.csv
   ambiguous_zip3_prefixes.csv
   disease_diagnosis_prefixes.csv
@@ -86,6 +106,7 @@ results/wp4/general_radiology/
   trinetx_imaging_utilization_diagnosis31d_long.csv
   trinetx_imaging_utilization_national_window_comparison.csv
   run_metadata.json
+  runrelay_summary.json
 ```
 
 GBD scaling writes:
@@ -114,14 +135,16 @@ WP4 disease-based volume is not ready for manuscript integration until:
 
 Only after these gates should WP7 combine clinical volume with AI energy and grid carbon intensity.
 
-## Run commands
+## Direct debugging commands
+
+The RunRelay task is preferred. The component scripts remain runnable for debugging:
 
 ```bash
 python3 scripts/test_wp4_general_radiology_clinical_volume.py
 
 python3 scripts/run_wp4_general_radiology_clinical_volume.py \
-  --trinetx-dir /home/asadr/datasets/TriNetX/66350692f55db9228fba3206_20240514_224202103_Control \
-  --zip-map /home/asadr/datasets/geodata/zip_code_database.csv \
+  --trinetx-dir /home/asadr/datasets/trinetx/66350692f55db9228fba3206_20240514_224202103_Control \
+  --zip-map /path/to/zip_code_database.csv \
   --output-dir results/wp4/general_radiology
 
 python3 scripts/scale_wp4_general_radiology_gbd.py \
