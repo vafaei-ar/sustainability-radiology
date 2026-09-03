@@ -27,7 +27,7 @@ share/python-wheels/
 MANIFEST
 
 # PyInstaller
-#   Usually these files are written by a python script from a template
+#   Usually these files are written by a script from a template
 *.manifest
 *.spec
 
@@ -126,11 +126,12 @@ activemq-data/
 # SageMath parsed files
 *.sage.py
 
-# Environments and project-local WP3 caches
+# Environments and project-local WP3/WP4 caches
 .env
 .envrc
 .venv
 .venv-wp3/
+.venv-wp4/
 .wp3-bootstrap/
 .wp3-models/
 .wp3-data/
